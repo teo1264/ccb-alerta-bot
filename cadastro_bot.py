@@ -22,7 +22,7 @@ def main():
     application.run_webhook(
         listen="0.0.0.0",
         port=10000,
-        webhook_url="https://ccb-alerta-bot.onrender.com/telegram"
+        webhook_url="https://ccb-alerta-bot.onrender.com/"
     )
 
 if __name__ == '__main__':
