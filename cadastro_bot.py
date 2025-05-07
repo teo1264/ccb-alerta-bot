@@ -1,50 +1,29 @@
-from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes
-from telegram.ext import filters
-import pandas as pd
+from telegram import Update
+from telegram.ext import Application, CommandHandler, ContextTypes
 import os
 
-TOKEN = '7773179413:AAFkpZxyhs4s91mIbWeYdFQ7UWCXfQGVOn0'
-PLANILHA = 'responsaveis_casas.xlsx'
+TOKEN = os.getenv("BOT_TOKEN")
 
-async def registrar(update, context: ContextTypes.DEFAULT_TYPE):
-    texto = update.message.text.strip()
-    chat_id = update.effective_chat.id
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "A Paz de Deus!\n\nPor favor envie sua mensagem com o seguinte formato:\n\n/cadastro BR21-0000 / João da Silva / Cooperador"
+    )
 
-    try:
-        casa, nome, cargo = [parte.strip() for parte in texto.split("/")]
-    except ValueError:
-        await context.bot.send_message(chat_id=chat_id, text=(
-            "Formato inválido. Envie assim:\n"
-            "`BR 21-0275 | João Silva | Cooperador`"
-        ), parse_mode='Markdown')
-        return
+async def cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    texto = update.message.text.replace('/cadastro', '').strip()
+    await update.message.reply_text(f"Cadastro recebido: {texto}\n\nDeus abençoe!")
 
-    # Verifica se a planilha já existe
-    if os.path.exists(PLANILHA):
-        df = pd.read_excel(PLANILHA)
-    else:
-        df = pd.DataFrame(columns=["Casa Código", "Nome Responsável", "Cargo", "Chat ID"])
+def main():
+    application = Application.builder().token(TOKEN).build()
 
-    # Verifica se já está registrado
-    ja_registrado = (df["Chat ID"] == chat_id).any()
-    if ja_registrado:
-        await context.bot.send_message(chat_id=chat_id, text="Seu cadastro já está registrado.")
-        return
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("cadastro", cadastro))
 
-    # Adiciona nova linha
-    nova_linha = {
-        "Casa Código": casa,
-        "Nome Responsável": nome,
-        "Cargo": cargo,
-        "Chat ID": chat_id
-    }
-    df = pd.concat([df, pd.DataFrame([nova_linha])], ignore_index=True)
-    df.to_excel(PLANILHA, index=False)
+    application.run_webhook(
+        listen="0.0.0.0",
+        port=10000,
+        webhook_url="https://ccb-alerta-bot.onrender.com/telegram"
+    )
 
-    await context.bot.send_message(chat_id=chat_id, text="Cadastro realizado com sucesso. Deus abençoe!")
-
-app = ApplicationBuilder().token(TOKEN).build()
-app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), registrar))
-
-print("Bot ativo e aguardando registros...")
-app.run_polling()
+if __name__ == '__main__':
+    main()
