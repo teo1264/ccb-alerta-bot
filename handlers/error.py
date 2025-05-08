@@ -29,10 +29,27 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     tb_list = traceback.format_exception(None, context.error, context.error.__traceback__)
     tb_string = "".join(tb_list)
     
+    # Registrar informações sobre o update, verificando se não é None
+    update_str = "Sem informações"
+    if update:
+        try:
+            # Tente obter informações detalhadas para o log
+            update_str = json.dumps(update.to_dict(), indent=2, ensure_ascii=False)
+        except (AttributeError, TypeError):
+            # Se falhar, use uma versão simplificada
+            if update.effective_message:
+                update_str = f"Mensagem de {update.effective_message.from_user.id}"
+                if update.effective_message.text:
+                    update_str += f": {update.effective_message.text[:50]}..."
+            elif update.effective_user:
+                update_str = f"Usuário: {update.effective_user.id}"
+            else:
+                update_str = "Informações do update indisponíveis"
+    
     # Registrar o erro com todas as informações disponíveis
     error_message = (
         f"Exception while handling an update:\n"
-        f"update = {html.escape(json.dumps(update.to_dict(), indent=2, ensure_ascii=False))}\n\n"
+        f"update = {html.escape(update_str)}\n\n"
         f"context.chat_data = {html.escape(str(context.chat_data))}\n\n"
         f"context.user_data = {html.escape(str(context.user_data))}\n\n"
         f"{html.escape(tb_string)}"
@@ -56,12 +73,6 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     error_text += f"Mensagem: `{str(context.error)}`\n\n"
     
     # Adicionar informações de contexto se disponíveis
-    update_str = "Sem informações"
-    if update and update.effective_message:
-        update_str = f"Mensagem de {update.effective_message.from_user.id}"
-        if update.effective_message.text:
-            update_str += f": {update.effective_message.text[:50]}..."
-    
     error_text += f"Contexto: {update_str}\n"
     error_text += f"Hora: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n"
     error_text += f"Log salvo como: `{error_file}`"
