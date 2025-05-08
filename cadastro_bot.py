@@ -783,9 +783,7 @@ def main():
     application.add_handler(CallbackQueryHandler(processar_callback, pattern='^(confirmar|cancelar)$'))
     application.add_handler(CallbackQueryHandler(processar_callback_admin, pattern='^(confirmar_limpar|cancelar_limpar)$'))
     
-    # Iniciar o bot com polling
-    print("Bot iniciado!")
-   # Adicionar handler para cadastro em etapas
+    # Adicionar handler para cadastro em etapas
     cadastro_handler = ConversationHandler(
         entry_points=[CommandHandler("cadastrar", iniciar_cadastro_etapas)],
         states={
@@ -797,7 +795,7 @@ def main():
         fallbacks=[CommandHandler("cancelar", cancelar_cadastro)]
     )
     application.add_handler(cadastro_handler)
+    
+    # Iniciar o bot com polling
+    print("Bot iniciado!")
     application.run_polling(drop_pending_updates=True)
-
-if __name__ == '__main__':
-    main()  
