@@ -40,7 +40,9 @@ IGREJAS = [
     {"codigo": "BR21-0757", "nome": "JARDIM CRUZEIRO"},
     {"codigo": "BR21-0774", "nome": "JARDIM MAUÁ"},
     {"codigo": "BR21-0856", "nome": "JARDIM ZAÍRA - GLEBA D"},
-    {"codigo": "BR21-0920", "nome": "CHÁCARA MARIA FRANCISCA"}
+    {"codigo": "BR21-0920", "nome": "CHÁCARA MARIA FRANCISCA"},
+    {"codigo": "BR21-1082", "nome": "JARDIM ITAPARK NOVO"},
+    {"codigo": "BR21-1108", "nome": "RECANTO VITAL BRASIL"}
 ]
 
 # Lista de funções disponíveis - Encarregado da Manutenção como primeira opção
