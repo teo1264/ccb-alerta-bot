@@ -1,0 +1,57 @@
+# Arquivos de ambiente Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Ambientes virtuais
+venv/
+ENV/
+.venv/
+env/
+
+# Arquivos de dados e backups
+*.xlsx
+*.xls
+*.csv
+backup_*
+responsaveis_*.xlsx
+admin_ids.txt
+
+# Logs e arquivos temporários
+*.log
+.DS_Store
+Thumbs.db
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Arquivos de configuração locais
+.env
+.env.local
+config.local.py
+
+# IDEs e editores
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+.project
+.pydevproject
