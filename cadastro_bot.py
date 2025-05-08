@@ -1,4 +1,3 @@
-# Para o sistema de conversação em etapas
 from telegram.ext import ConversationHandler
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
@@ -13,6 +12,9 @@ EXCEL_FILE = "responsaveis_casas.xlsx"
 
 # Coloque aqui o seu ID do Telegram e de outros administradores
 ADMIN_IDS = [5876346562]  # ID ajustado conforme solicitado
+
+# Estados para a conversa de cadastro em etapas
+CODIGO, NOME, FUNCAO, CONFIRMAR = range(4)
 
 async def mensagem_boas_vindas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Responde a qualquer mensagem com uma saudação e instruções"""
@@ -762,7 +764,25 @@ def main():
     # Criar aplicação
     application = Application.builder().token(TOKEN).build()
     
-    # Conversation handler para cadastro em etapas
+    # Handlers para comandos básicos
+    application.add_handler(CommandHandler("start", mensagem_boas_vindas))
+    application.add_handler(CommandHandler("cadastro", cadastro))
+    application.add_handler(CommandHandler("meu_id", mostrar_id))
+    
+    # Handlers para comandos administrativos
+    application.add_handler(CommandHandler("exportar", exportar_planilha))
+    application.add_handler(CommandHandler("listar", listar_cadastros))
+    application.add_handler(CommandHandler("limpar", limpar_cadastros))
+    application.add_handler(CommandHandler("admin_add", adicionar_admin))
+    
+    # Handler para mensagens de texto
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, processar_cadastro_simples))
+    
+    # Handlers para callbacks
+    application.add_handler(CallbackQueryHandler(processar_callback, pattern='^(confirmar|cancelar)$'))
+    application.add_handler(CallbackQueryHandler(processar_callback_admin, pattern='^(confirmar_limpar|cancelar_limpar)$'))
+    
+    # NOVO: Adicionar handler para cadastro em etapas
     cadastro_handler = ConversationHandler(
         entry_points=[CommandHandler("cadastrar", iniciar_cadastro_etapas)],
         states={
@@ -773,28 +793,8 @@ def main():
         },
         fallbacks=[CommandHandler("cancelar", cancelar_cadastro)]
     )
-    
-    # Handlers para comandos básicos
-    application.add_handler(CommandHandler("start", mensagem_boas_vindas))
-    application.add_handler(CommandHandler("cadastro", cadastro))  # Manter o método antigo também
-    application.add_handler(CommandHandler("meu_id", mostrar_id))
-    
-    # Adicionar o novo handler de cadastro em etapas
     application.add_handler(cadastro_handler)
     
-    # Handlers para comandos administrativos
-    application.add_handler(CommandHandler("exportar", exportar_planilha))
-    application.add_handler(CommandHandler("listar", listar_cadastros))
-    application.add_handler(CommandHandler("limpar", limpar_cadastros))
-    application.add_handler(CommandHandler("admin_add", adicionar_admin))
-    
-    # Handler para mensagens de texto (manter o comportamento original para compatibilidade)
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, processar_cadastro_simples))
-    
-    # Handlers para callbacks
-    application.add_handler(CallbackQueryHandler(processar_callback, pattern='^(confirmar|cancelar)$'))
-    application.add_handler(CallbackQueryHandler(processar_callback_admin, pattern='^(confirmar_limpar|cancelar_limpar)$'))
-    
-    # Iniciar o bot com polling
+    # Adicionar opção para evitar conflitos
     print("Bot iniciado!")
-    application.run_polling(drop_pending_updates=True)  # Adicionada opção para evitar conflitos
+    application.run_polling(drop_pending_updates=True)
