@@ -5,6 +5,7 @@
 Handlers para funções administrativas do CCB Alerta Bot
 """
 
+from handlers.data import FUNCOES, obter_igreja_por_codigo
 import os
 import pandas as pd
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -67,6 +68,19 @@ async def listar_cadastros(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     
+    # Extrair argumentos opcionais
+    args = context.args
+    filtro_igreja = None
+    filtro_funcao = None
+    
+    # Analisar argumentos para filtros
+    if args:
+        for arg in args:
+            if arg.upper().startswith('BR21-'):
+                filtro_igreja = arg.upper()
+            elif arg.lower() in [f.lower() for f in FUNCOES]:
+                filtro_funcao = next(f for f in FUNCOES if f.lower() == arg.lower())
+    
     try:
         if not os.path.exists(EXCEL_FILE):
             await update.message.reply_text(
@@ -88,17 +102,61 @@ async def listar_cadastros(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
         
-        # Formatar mensagem com os cadastros
-        mensagem = "🕊️ *A Santa Paz de Deus!*\n\n"
-        mensagem += "📋 *Lista de Cadastros:*\n\n"
+        # Aplicar filtros se fornecidos
+        if filtro_igreja:
+            df = df[df['Codigo_Casa'].str.upper() == filtro_igreja]
         
-        for i, row in df.iterrows():
-            mensagem += f"📍 *{row['Codigo_Casa']}*\n"
-            mensagem += f"👤 Nome: {row['Nome']}\n"
-            mensagem += f"🔧 Função: {row['Funcao']}\n"
-            mensagem += f"📅 Data: {row['Data_Cadastro']}\n\n"
+        if filtro_funcao:
+            df = df[df['Funcao'].str.lower() == filtro_funcao.lower()]
         
-        # Enviar mensagem (possivelmente dividida se for muito grande)
+        if df.empty:
+            await update.message.reply_text(
+                "🕊️ *A Santa Paz de Deus!*\n\n"
+                "❌ Nenhum cadastro encontrado com os filtros especificados.\n\n"
+                "_Deus te abençoe!_ 🙏",
+                parse_mode='Markdown'
+            )
+            return
+        
+        # Contar cadastros por igreja e função
+        total_igrejas = df['Codigo_Casa'].nunique()
+        total_cadastros = len(df)
+        contagem_funcoes = df['Funcao'].value_counts().to_dict()
+        
+        # Criar resumo estatístico
+        resumo = "🕊️ *A Santa Paz de Deus!*\n\n"
+        resumo += "📊 *Resumo dos Cadastros:*\n\n"
+        resumo += f"📍 Total de Igrejas: *{total_igrejas}*\n"
+        resumo += f"👥 Total de Responsáveis: *{total_cadastros}*\n\n"
+        resumo += "*Distribuição por Função:*\n"
+        
+        for funcao, contagem in contagem_funcoes.items():
+            resumo += f"• {funcao}: *{contagem}*\n"
+        
+        resumo += "\n"
+        
+        # Agrupar por igreja
+        igrejas_agrupadas = df.groupby('Codigo_Casa')
+        
+        # Formatar mensagem detalhada com os cadastros
+        mensagem = "📋 *Lista de Cadastros:*\n\n"
+        
+        for codigo_igreja, grupo in igrejas_agrupadas:
+            # Obter nome da igreja a partir do código
+            igreja_info = obter_igreja_por_codigo(codigo_igreja)
+            nome_igreja = igreja_info['nome'] if igreja_info else "Desconhecida"
+            
+            mensagem += f"📍 *{codigo_igreja} - {nome_igreja}*\n"
+            
+            for i, row in grupo.iterrows():
+                mensagem += f"  👤 *{row['Nome']}* - {row['Funcao']}\n"
+            
+            mensagem += "\n"
+        
+        # Enviar primeiro o resumo estatístico
+        await update.message.reply_text(resumo, parse_mode='Markdown')
+        
+        # Enviar a lista detalhada (possivelmente dividida se for muito grande)
         if len(mensagem) > 4096:
             partes = [mensagem[i:i+4096] for i in range(0, len(mensagem), 4096)]
             for parte in partes:
@@ -113,6 +171,9 @@ async def listar_cadastros(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "_Deus te abençoe!_ 🙏",
             parse_mode='Markdown'
         )
+
+# Adicionar isto no início do arquivo (nos imports)
+from handlers.data import FUNCOES, obter_igreja_por_codigo
 
 async def limpar_cadastros(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Remove todos os cadastros (apenas para administradores)"""
