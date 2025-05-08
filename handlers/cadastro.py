@@ -572,8 +572,8 @@ def registrar_handlers_cadastro(application):
     cadastro_handler = ConversationHandler(
         entry_points=[
             CommandHandler("cadastrar", iniciar_cadastro_etapas),
-            # Adicionar MessageHandler para processar clique no botão de menu também
-            MessageHandler(filters.Regex(r"^🖋️ Cadastrar Responsável$"), iniciar_cadastro_etapas)
+            # Adicionar MessageHandler para processar clique no botão de menu (com ambos os formatos)
+            MessageHandler(filters.Regex(r"^(🖋️ Cadastrar Responsável|📝 CADASTRAR RESPONSÁVEL 📝)$"), iniciar_cadastro_etapas)
         ],
         states={
             SELECIONAR_IGREJA: [
