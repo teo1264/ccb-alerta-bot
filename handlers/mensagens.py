@@ -11,6 +11,7 @@ from telegram import Update
 from telegram.ext import MessageHandler, filters, ContextTypes
 
 from handlers.commands import mensagem_boas_vindas
+from handlers.cadastro import iniciar_cadastro_etapas
 
 # Expressões de louvor e suas respostas
 EXPRESSOES_LOUVOR = [
@@ -52,18 +53,33 @@ async def processar_mensagem(update: Update, context: ContextTypes.DEFAULT_TYPE)
     Processa mensagens de texto e orienta o usuário
     
     Esta função é chamada quando o usuário envia uma mensagem que não é um comando.
-    Verifica se o texto parece uma expressão de louvor, uma tentativa de cadastro, ou
-    outra mensagem, e responde apropriadamente.
+    Verifica se é um botão do menu, uma expressão de louvor, tentativa de cadastro, etc.
     """
-    texto = update.message.text.strip().lower()
+    texto = update.message.text.strip()
     
     # Mostrar ID do usuário para ajudar na depuração
     user_id = update.effective_user.id
     print(f"Mensagem recebida do usuário ID: {user_id}, Username: @{update.effective_user.username}")
     
-    # Verificar se é uma expressão de louvor
+    # Verificar se é um clique em botão do menu
+    if texto == "🖋️ Cadastrar Responsável":
+        # Inicia o fluxo de cadastro como se o usuário tivesse usado o comando /cadastrar
+        return await iniciar_cadastro_etapas(update, context)
+    
+    elif texto == "ℹ️ Ajuda":
+        # Executa o comando de ajuda
+        from handlers.commands import mostrar_ajuda
+        return await mostrar_ajuda(update, context)
+    
+    elif texto == "🆔 Meu ID":
+        # Executa o comando para mostrar ID
+        from handlers.commands import mostrar_id
+        return await mostrar_id(update, context)
+    
+    # Verificar se é uma expressão de louvor (versão em minúsculas para comparação)
+    texto_lower = texto.lower()
     for padrao in EXPRESSOES_LOUVOR:
-        if re.search(padrao, texto, re.IGNORECASE):
+        if re.search(padrao, texto_lower):
             # Escolher uma resposta aleatória
             resposta = random.choice(RESPOSTAS_LOUVOR)
             await update.message.reply_text(resposta)
@@ -75,7 +91,7 @@ async def processar_mensagem(update: Update, context: ContextTypes.DEFAULT_TYPE)
             "🕊️ *A Santa Paz de Deus!*\n\n"
             "📝 *Nova forma de cadastro!*\n\n"
             "Temos um processo mais simples para cadastro.\n\n"
-            "Por favor, digite */cadastrar* e siga as instruções passo a passo.\n\n"
+            "Por favor, clique no botão *🖋️ Cadastrar Responsável* ou digite */cadastrar* para iniciar o processo passo a passo.\n\n"
             "_Deus te abençoe!_ 🙏",
             parse_mode='Markdown'
         )
