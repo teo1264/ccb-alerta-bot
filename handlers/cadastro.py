@@ -2,247 +2,76 @@
 # -*- coding: utf-8 -*-
 
 """
-Handlers para funções administrativas do CCB Alerta Bot
+Handlers para o processo de cadastro do CCB Alerta Bot
 """
 
-import os
-import pandas as pd
+import re
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import CommandHandler, CallbackQueryHandler, ContextTypes
+from telegram.ext import (
+    CommandHandler, MessageHandler, CallbackQueryHandler,
+    ConversationHandler, ContextTypes, filters
+)
 
-from config import EXCEL_FILE, ADMIN_IDS
-from utils import verificar_admin, adicionar_admin, fazer_backup_planilha
+from config import CODIGO, NOME, FUNCAO, CONFIRMAR
+from utils import salvar_cadastro, verificar_duplicata, verificar_formato_cadastro, extrair_dados_cadastro
 
-async def exportar_planilha(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Envia a planilha de cadastros como um arquivo (apenas para administradores)"""
-    # Verificar se o usuário é administrador
-    if not verificar_admin(update.effective_user.id):
+async def cadastro_comando(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Processa cadastro enviado via comando /cadastro"""
+    texto = update.message.text.replace('/cadastro', '').strip()
+    
+    # Verificar se há dados após o comando
+    if not texto:
         await update.message.reply_text(
             "🕊️ *A Santa Paz de Deus!*\n\n"
-            "⚠️ *Acesso Negado*\n\n"
-            "Você não tem permissão para acessar esta função.\n\n"
+            "📝 *Cadastro Manual*\n\n"
+            "Para cadastrar manualmente, envie no formato:\n"
+            "`/cadastro BR21-0000 / Nome Completo / Função`\n\n"
+            "Exemplo:\n"
+            "`/cadastro BR21-0270 / João Silva / Cooperador`\n\n"
+            "Ou utilize o comando */cadastrar* para o processo guiado passo a passo.\n\n"
             "_Deus te abençoe!_ 🙏",
             parse_mode='Markdown'
         )
         return
     
-    try:
-        if not os.path.exists(EXCEL_FILE):
-            await update.message.reply_text(
-                "🕊️ *A Santa Paz de Deus!*\n\n"
-                "❌ Nenhum arquivo de cadastro encontrado.\n\n"
-                "_Deus te abençoe!_ 🙏",
-                parse_mode='Markdown'
-            )
-            return
-            
-        # Enviar o arquivo
-        await update.message.reply_document(
-            document=open(EXCEL_FILE, 'rb'),
-            filename=EXCEL_FILE,
-            caption="🕊️ *A Santa Paz de Deus!*\n\nAqui está o arquivo com todos os cadastros de responsáveis.\n\n_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
-        )
-        
-        print(f"Planilha enviada para o administrador: {update.effective_user.id} - {update.effective_user.username}")
-        
-    except Exception as e:
-        await update.message.reply_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
-            f"❌ Erro ao enviar planilha: {str(e)}\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
-        )
-
-async def listar_cadastros(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Lista todos os cadastros (apenas para administradores)"""
-    # Verificar se o usuário é administrador
-    if not verificar_admin(update.effective_user.id):
-        await update.message.reply_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
-            "⚠️ *Acesso Negado*\n\n"
-            "Você não tem permissão para acessar esta função.\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
-        )
-        return
-    
-    try:
-        if not os.path.exists(EXCEL_FILE):
-            await update.message.reply_text(
-                "🕊️ *A Santa Paz de Deus!*\n\n"
-                "❌ Nenhum cadastro encontrado.\n\n"
-                "_Deus te abençoe!_ 🙏",
-                parse_mode='Markdown'
-            )
-            return
-            
-        df = pd.read_excel(EXCEL_FILE)
-        
-        if df.empty:
-            await update.message.reply_text(
-                "🕊️ *A Santa Paz de Deus!*\n\n"
-                "❌ Nenhum cadastro encontrado.\n\n"
-                "_Deus te abençoe!_ 🙏",
-                parse_mode='Markdown'
-            )
-            return
-        
-        # Formatar mensagem com os cadastros
-        mensagem = "🕊️ *A Santa Paz de Deus!*\n\n"
-        mensagem += "📋 *Lista de Cadastros:*\n\n"
-        
-        for i, row in df.iterrows():
-            mensagem += f"📍 *{row['Codigo_Casa']}*\n"
-            mensagem += f"👤 Nome: {row['Nome']}\n"
-            mensagem += f"🔧 Função: {row['Funcao']}\n"
-            mensagem += f"📅 Data: {row['Data_Cadastro']}\n\n"
-        
-        # Enviar mensagem (possivelmente dividida se for muito grande)
-        if len(mensagem) > 4096:
-            partes = [mensagem[i:i+4096] for i in range(0, len(mensagem), 4096)]
-            for parte in partes:
-                await update.message.reply_text(parte, parse_mode='Markdown')
-        else:
-            await update.message.reply_text(mensagem, parse_mode='Markdown')
-            
-    except Exception as e:
-        await update.message.reply_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
-            f"❌ Erro ao listar cadastros: {str(e)}\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
-        )
-
-async def limpar_cadastros(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Remove todos os cadastros (apenas para administradores)"""
-    # Verificar se o usuário é administrador
-    if not verificar_admin(update.effective_user.id):
-        await update.message.reply_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
-            "⚠️ *Acesso Negado*\n\n"
-            "Você não tem permissão para acessar esta função.\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
-        )
-        return
-    
-    # Confirmar ação com botões
-    keyboard = [
-        [
-            InlineKeyboardButton("⚠️ Sim, limpar tudo", callback_data="confirmar_limpar"),
-            InlineKeyboardButton("❌ Cancelar", callback_data="cancelar_limpar")
-        ]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    await update.message.reply_text(
-        "🕊️ *A Santa Paz de Deus!*\n\n"
-        "⚠️ *ATENÇÃO!*\n\n"
-        "Você está prestes a *APAGAR TODOS OS CADASTROS*.\n"
-        "Esta ação NÃO pode ser desfeita!\n\n"
-        "Tem certeza que deseja continuar?",
-        reply_markup=reply_markup,
-        parse_mode='Markdown'
-    )
-
-async def processar_callback_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Processa callbacks dos botões inline para comandos administrativos"""
-    query = update.callback_query
-    await query.answer()
-    
-    # Verificar se o usuário é administrador
-    if not verificar_admin(update.effective_user.id):
-        await query.edit_message_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
-            "⚠️ *Acesso Negado*\n\n"
-            "Você não tem permissão para acessar esta função.\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
-        )
-        return
-    
-    if query.data == "confirmar_limpar":
-        try:
-            if os.path.exists(EXCEL_FILE):
-                # Fazer backup antes de limpar
-                backup_file = fazer_backup_planilha()
-                
-                # Criar planilha vazia
-                df = pd.DataFrame(columns=[
-                    'Codigo_Casa', 'Nome', 'Funcao', 
-                    'User_ID', 'Username', 'Data_Cadastro',
-                    'Ultima_Atualizacao'
-                ])
-                df.to_excel(EXCEL_FILE, index=False)
-                
-                await query.edit_message_text(
-                    "🕊️ *A Santa Paz de Deus!*\n\n"
-                    "✅ *Todos os cadastros foram removidos!*\n\n"
-                    f"Um backup foi criado como: `{backup_file}`\n\n"
-                    "_Deus te abençoe!_ 🙏",
-                    parse_mode='Markdown'
-                )
-            else:
-                await query.edit_message_text(
-                    "🕊️ *A Santa Paz de Deus!*\n\n"
-                    "ℹ️ Nenhum cadastro encontrado para remover.\n\n"
-                    "_Deus te abençoe!_ 🙏",
-                    parse_mode='Markdown'
-                )
-        except Exception as e:
-            await query.edit_message_text(
-                "🕊️ *A Santa Paz de Deus!*\n\n"
-                f"❌ Erro ao limpar cadastros: {str(e)}\n\n"
-                "_Deus te abençoe!_ 🙏",
-                parse_mode='Markdown'
-            )
-    
-    elif query.data == "cancelar_limpar":
-        await query.edit_message_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
-            "✅ *Operação cancelada!*\n\n"
-            "Nenhum cadastro foi removido.\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
-        )
-
-async def adicionar_admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Adiciona um novo administrador (apenas para administradores)"""
-    # Verificar se o usuário é administrador
-    if not verificar_admin(update.effective_user.id):
-        await update.message.reply_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
-            "⚠️ *Acesso Negado*\n\n"
-            "Você não tem permissão para acessar esta função.\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
-        )
-        return
-    
-    # Verificar se há argumentos
-    args = context.args
-    if not args or not args[0].isdigit():
+    # Verificar formato
+    if not verificar_formato_cadastro(texto):
         await update.message.reply_text(
             "🕊️ *A Santa Paz de Deus!*\n\n"
             "❌ *Formato inválido!*\n\n"
-            "Use: `/admin_add ID_DO_USUARIO`\n"
-            "Exemplo: `/admin_add 123456789`\n\n"
+            "📝 Por favor, use o formato correto:\n"
+            "`BR21-0000 / Seu Nome Completo / Sua Função`\n\n"
+            "📌 *Exemplo:*\n"
+            "`BR21-0270 / João Silva / Cooperador`\n\n"
             "_Deus te abençoe!_ 🙏",
             parse_mode='Markdown'
         )
         return
     
-    # Obter ID do novo administrador
-    novo_admin_id = int(args[0])
+    # Extrair dados
+    codigo, nome, funcao = extrair_dados_cadastro(texto)
     
-    # Adicionar como administrador
-    sucesso, status = adicionar_admin(novo_admin_id)
-    
-    if not sucesso and status == "já é admin":
+    if not codigo or not nome or not funcao:
         await update.message.reply_text(
             "🕊️ *A Santa Paz de Deus!*\n\n"
-            "ℹ️ Este usuário já é um administrador.\n\n"
+            "❌ *Não foi possível processar os dados!*\n\n"
+            "Por favor, verifique o formato e tente novamente.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        return
+    
+    # Salvar cadastro
+    sucesso, status = salvar_cadastro(codigo, nome, funcao, 
+                                     update.effective_user.id, 
+                                     update.effective_user.username or "")
+    
+    if not sucesso and status == "duplicado":
+        await update.message.reply_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            "⚠️ *Atenção!*\n\n"
+            f"O código da Casa de Oração já está cadastrado no sistema.\n\n"
+            "Se precisar atualizar as informações, entre em contato com o administrador.\n\n"
             "_Deus te abençoe!_ 🙏",
             parse_mode='Markdown'
         )
@@ -250,28 +79,404 @@ async def adicionar_admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     if sucesso:
         await update.message.reply_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
-            f"✅ Administrador adicionado com sucesso: `{novo_admin_id}`\n\n"
-            "_Deus te abençoe!_ 🙏",
+            f"🕊️ *A Santa Paz de Deus!*\n\n"
+            f"✅ *Cadastro recebido com sucesso:*\n\n"
+            f"📍 *Código:* `{codigo}`\n"
+            f"👤 *Nome:* `{nome}`\n"
+            f"🔧 *Função:* `{funcao}`\n\n"
+            f"🗂️ Estamos em *fase de cadastro* dos irmãos responsáveis pelo acompanhamento.\n"
+            f"📢 Assim que esta fase for concluída, os *alertas automáticos de consumo* começarão a ser enviados.\n\n"
+            f"_Deus te abençoe!_ 🙌",
             parse_mode='Markdown'
         )
     else:
         await update.message.reply_text(
             "🕊️ *A Santa Paz de Deus!*\n\n"
-            f"❌ Erro ao adicionar administrador: {status}\n\n"
+            "❌ *Houve um problema ao processar seu cadastro!*\n\n"
+            "Por favor, tente novamente mais tarde ou entre em contato com o administrador.\n\n"
             "_Deus te abençoe!_ 🙏",
             parse_mode='Markdown'
         )
 
-def registrar_handlers_admin(application):
-    """Registra handlers para funções administrativas"""
-    application.add_handler(CommandHandler("exportar", exportar_planilha))
-    application.add_handler(CommandHandler("listar", listar_cadastros))
-    application.add_handler(CommandHandler("limpar", limpar_cadastros))
-    application.add_handler(CommandHandler("admin_add", adicionar_admin_cmd))
+def registrar_handlers_cadastro(application):
+    """Registra handlers relacionados ao cadastro"""
+    # Handler para cadastro manual via comando
+    application.add_handler(CommandHandler("cadastro", cadastro_comando))
     
-    # Handler para os callbacks de confirmação nas funções administrativas
-    application.add_handler(CallbackQueryHandler(
-        processar_callback_admin, 
-        pattern='^(confirmar_limpar|cancelar_limpar)$'
-    ))
+    # Handler para cadastro em etapas (conversation)
+    cadastro_handler = ConversationHandler(
+        entry_points=[CommandHandler("cadastrar", iniciar_cadastro_etapas)],
+        states={
+            CODIGO: [MessageHandler(filters.TEXT & ~filters.COMMAND, receber_codigo)],
+            NOME: [MessageHandler(filters.TEXT & ~filters.COMMAND, receber_nome)],
+            FUNCAO: [MessageHandler(filters.TEXT & ~filters.COMMAND, receber_funcao)],
+            CONFIRMAR: [CallbackQueryHandler(confirmar_etapas, pattern='^(confirmar_etapas|cancelar_etapas) iniciar_cadastro_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Inicia o processo de cadastro passo a passo"""
+    await update.message.reply_text(
+        "🕊️ *A Santa Paz de Deus!*\n\n"
+        "Vamos iniciar o cadastro da Casa de Oração.\n\n"
+        "Digite o número da Casa de Oração (somente números):",
+        parse_mode='Markdown'
+    )
+    return CODIGO
+
+async def receber_codigo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Recebe o código da casa e solicita o nome"""
+    numero = update.message.text.strip()
+    
+    # Validar se é um número
+    if not numero.isdigit():
+        await update.message.reply_text(
+            "❌ Por favor, digite apenas números.\n\n"
+            "Digite o número da Casa de Oração:"
+        )
+        return CODIGO
+    
+    # Formatar o código no padrão desejado
+    codigo_formatado = f"BR21-{numero.zfill(4)}"
+    
+    # Verificar duplicata
+    if verificar_duplicata(codigo_formatado):
+        await update.message.reply_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            "⚠️ *Atenção!*\n\n"
+            f"O código da Casa de Oração *{codigo_formatado}* já está cadastrado no sistema.\n\n"
+            "Por favor, verifique o número ou entre em contato com o administrador.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        return ConversationHandler.END
+    
+    # Armazenar temporariamente
+    context.user_data['codigo'] = codigo_formatado
+    
+    await update.message.reply_text(
+        f"✅ Código registrado: *{codigo_formatado}*\n\n"
+        "Agora, digite o nome do responsável:",
+        parse_mode='Markdown'
+    )
+    return NOME
+
+async def receber_nome(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Recebe o nome e solicita a função"""
+    nome = update.message.text.strip()
+    
+    # Validação básica
+    if len(nome) < 3:
+        await update.message.reply_text(
+            "❌ Por favor, digite um nome válido com pelo menos 3 caracteres."
+        )
+        return NOME
+    
+    # Armazenar temporariamente
+    context.user_data['nome'] = nome
+    
+    await update.message.reply_text(
+        f"✅ Nome registrado: *{nome}*\n\n"
+        "Agora, digite a função do responsável (Exemplo: Cooperador, Diácono, etc.):",
+        parse_mode='Markdown'
+    )
+    return FUNCAO
+
+async def receber_funcao(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Recebe a função e mostra resumo para confirmação"""
+    funcao = update.message.text.strip()
+    
+    # Validação básica
+    if len(funcao) < 3:
+        await update.message.reply_text(
+            "❌ Por favor, digite uma função válida com pelo menos 3 caracteres."
+        )
+        return FUNCAO
+    
+    # Armazenar temporariamente
+    context.user_data['funcao'] = funcao
+    
+    # Preparar botões de confirmação
+    keyboard = [
+        [
+            InlineKeyboardButton("✅ Confirmar Cadastro", callback_data="confirmar_etapas"),
+            InlineKeyboardButton("❌ Cancelar", callback_data="cancelar_etapas")
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(
+        "🕊️ *A Santa Paz de Deus!*\n\n"
+        "📝 *Confirme os dados do cadastro:*\n\n"
+        f"📍 *Código:* `{context.user_data['codigo']}`\n"
+        f"👤 *Nome:* `{context.user_data['nome']}`\n"
+        f"🔧 *Função:* `{context.user_data['funcao']}`\n\n"
+        "Os dados estão corretos?",
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
+    return CONFIRMAR
+
+async def confirmar_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Processa a confirmação do cadastro em etapas"""
+    query = update.callback_query
+    await query.answer()
+    
+    if query.data == "cancelar_etapas":
+        # Limpar dados do contexto
+        context.user_data.clear()
+        
+        await query.edit_message_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            "❌ *Cadastro cancelado!*\n\n"
+            "Você pode iniciar novamente quando quiser usando /cadastrar.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        return ConversationHandler.END
+    
+    # Obter dados do contexto
+    codigo = context.user_data.get('codigo', '')
+    nome = context.user_data.get('nome', '')
+    funcao = context.user_data.get('funcao', '')
+    
+    # Salvar cadastro
+    sucesso, status = salvar_cadastro(codigo, nome, funcao, 
+                                     update.effective_user.id, 
+                                     update.effective_user.username or "")
+    
+    if not sucesso and status == "duplicado":
+        await query.edit_message_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            "⚠️ *Atenção!*\n\n"
+            f"O código da Casa de Oração *{codigo}* já está cadastrado no sistema.\n\n"
+            "Por favor, verifique o número ou entre em contato com o administrador.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        context.user_data.clear()
+        return ConversationHandler.END
+    
+    if sucesso:
+        await query.edit_message_text(
+            f"🕊️ *A Santa Paz de Deus!*\n\n"
+            f"✅ *Cadastro recebido com sucesso:*\n\n"
+            f"📍 *Código:* `{codigo}`\n"
+            f"👤 *Nome:* `{nome}`\n"
+            f"🔧 *Função:* `{funcao}`\n\n"
+            f"🗂️ Estamos em *fase de cadastro* dos irmãos responsáveis pelo acompanhamento.\n"
+            f"📢 Assim que esta fase for concluída, os *alertas automáticos de consumo* começarão a ser enviados.\n\n"
+            f"_Deus te abençoe!_ 🙌",
+            parse_mode='Markdown'
+        )
+    else:
+        await query.edit_message_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            "❌ *Houve um problema ao processar seu cadastro!*\n\n"
+            "Por favor, tente novamente mais tarde ou entre em contato com o administrador.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+    
+    # Limpar dados do contexto
+    context.user_data.clear()
+    return ConversationHandler.END
+
+async def cancelar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancela o cadastro em qualquer etapa"""
+    # Limpar dados do contexto
+    context.user_data.clear()
+    
+    await update.message.reply_text(
+        "🕊️ *A Santa Paz de Deus!*\n\n"
+        "❌ *Cadastro cancelado!*\n\n"
+        "Você pode iniciar novamente quando quiser usando /cadastrar.\n\n"
+        "_Deus te abençoe!_ 🙏",
+        parse_mode='Markdown'
+    )
+    return ConversationHandler.END
+
+async def)]
+        },
+        fallbacks=[CommandHandler("cancelar", cancelar_cadastro)]
+    )
+    application.add_handler(cadastro_handler)
+ iniciar_cadastro_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Inicia o processo de cadastro passo a passo"""
+    await update.message.reply_text(
+        "🕊️ *A Santa Paz de Deus!*\n\n"
+        "Vamos iniciar o cadastro da Casa de Oração.\n\n"
+        "Digite o número da Casa de Oração (somente números):",
+        parse_mode='Markdown'
+    )
+    return CODIGO
+
+async def receber_codigo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Recebe o código da casa e solicita o nome"""
+    numero = update.message.text.strip()
+    
+    # Validar se é um número
+    if not numero.isdigit():
+        await update.message.reply_text(
+            "❌ Por favor, digite apenas números.\n\n"
+            "Digite o número da Casa de Oração:"
+        )
+        return CODIGO
+    
+    # Formatar o código no padrão desejado
+    codigo_formatado = f"BR21-{numero.zfill(4)}"
+    
+    # Verificar duplicata
+    if verificar_duplicata(codigo_formatado):
+        await update.message.reply_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            "⚠️ *Atenção!*\n\n"
+            f"O código da Casa de Oração *{codigo_formatado}* já está cadastrado no sistema.\n\n"
+            "Por favor, verifique o número ou entre em contato com o administrador.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        return ConversationHandler.END
+    
+    # Armazenar temporariamente
+    context.user_data['codigo'] = codigo_formatado
+    
+    await update.message.reply_text(
+        f"✅ Código registrado: *{codigo_formatado}*\n\n"
+        "Agora, digite o nome do responsável:",
+        parse_mode='Markdown'
+    )
+    return NOME
+
+async def receber_nome(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Recebe o nome e solicita a função"""
+    nome = update.message.text.strip()
+    
+    # Validação básica
+    if len(nome) < 3:
+        await update.message.reply_text(
+            "❌ Por favor, digite um nome válido com pelo menos 3 caracteres."
+        )
+        return NOME
+    
+    # Armazenar temporariamente
+    context.user_data['nome'] = nome
+    
+    await update.message.reply_text(
+        f"✅ Nome registrado: *{nome}*\n\n"
+        "Agora, digite a função do responsável (Exemplo: Cooperador, Diácono, etc.):",
+        parse_mode='Markdown'
+    )
+    return FUNCAO
+
+async def receber_funcao(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Recebe a função e mostra resumo para confirmação"""
+    funcao = update.message.text.strip()
+    
+    # Validação básica
+    if len(funcao) < 3:
+        await update.message.reply_text(
+            "❌ Por favor, digite uma função válida com pelo menos 3 caracteres."
+        )
+        return FUNCAO
+    
+    # Armazenar temporariamente
+    context.user_data['funcao'] = funcao
+    
+    # Preparar botões de confirmação
+    keyboard = [
+        [
+            InlineKeyboardButton("✅ Confirmar Cadastro", callback_data="confirmar_etapas"),
+            InlineKeyboardButton("❌ Cancelar", callback_data="cancelar_etapas")
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(
+        "🕊️ *A Santa Paz de Deus!*\n\n"
+        "📝 *Confirme os dados do cadastro:*\n\n"
+        f"📍 *Código:* `{context.user_data['codigo']}`\n"
+        f"👤 *Nome:* `{context.user_data['nome']}`\n"
+        f"🔧 *Função:* `{context.user_data['funcao']}`\n\n"
+        "Os dados estão corretos?",
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
+    return CONFIRMAR
+
+async def confirmar_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Processa a confirmação do cadastro em etapas"""
+    query = update.callback_query
+    await query.answer()
+    
+    if query.data == "cancelar_etapas":
+        # Limpar dados do contexto
+        context.user_data.clear()
+        
+        await query.edit_message_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            "❌ *Cadastro cancelado!*\n\n"
+            "Você pode iniciar novamente quando quiser usando /cadastrar.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        return ConversationHandler.END
+    
+    # Obter dados do contexto
+    codigo = context.user_data.get('codigo', '')
+    nome = context.user_data.get('nome', '')
+    funcao = context.user_data.get('funcao', '')
+    
+    # Salvar cadastro
+    sucesso, status = salvar_cadastro(codigo, nome, funcao, 
+                                     update.effective_user.id, 
+                                     update.effective_user.username or "")
+    
+    if not sucesso and status == "duplicado":
+        await query.edit_message_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            "⚠️ *Atenção!*\n\n"
+            f"O código da Casa de Oração *{codigo}* já está cadastrado no sistema.\n\n"
+            "Por favor, verifique o número ou entre em contato com o administrador.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        context.user_data.clear()
+        return ConversationHandler.END
+    
+    if sucesso:
+        await query.edit_message_text(
+            f"🕊️ *A Santa Paz de Deus!*\n\n"
+            f"✅ *Cadastro recebido com sucesso:*\n\n"
+            f"📍 *Código:* `{codigo}`\n"
+            f"👤 *Nome:* `{nome}`\n"
+            f"🔧 *Função:* `{funcao}`\n\n"
+            f"🗂️ Estamos em *fase de cadastro* dos irmãos responsáveis pelo acompanhamento.\n"
+            f"📢 Assim que esta fase for concluída, os *alertas automáticos de consumo* começarão a ser enviados.\n\n"
+            f"_Deus te abençoe!_ 🙌",
+            parse_mode='Markdown'
+        )
+    else:
+        await query.edit_message_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            "❌ *Houve um problema ao processar seu cadastro!*\n\n"
+            "Por favor, tente novamente mais tarde ou entre em contato com o administrador.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+    
+    # Limpar dados do contexto
+    context.user_data.clear()
+    return ConversationHandler.END
+
+async def cancelar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancela o cadastro em qualquer etapa"""
+    # Limpar dados do contexto
+    context.user_data.clear()
+    
+    await update.message.reply_text(
+        "🕊️ *A Santa Paz de Deus!*\n\n"
+        "❌ *Cadastro cancelado!*\n\n"
+        "Você pode iniciar novamente quando quiser usando /cadastrar.\n\n"
+        "_Deus te abençoe!_ 🙏",
+        parse_mode='Markdown'
+    )
+    return ConversationHandler.END
+
+async def
