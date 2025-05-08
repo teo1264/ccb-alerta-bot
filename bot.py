@@ -54,6 +54,9 @@ def main():
         # Criar a aplicação
         application = Application.builder().token(TOKEN).build()
         
+        # Configurações específicas para evitar conflitos de polling
+        allowed_updates = ["message", "callback_query", "edited_message"]
+        
         # Registrar handlers
         registrar_comandos_basicos(application)
         registrar_handlers_cadastro(application)
@@ -61,9 +64,17 @@ def main():
         registrar_handlers_mensagens(application)
         registrar_error_handler(application)
         
-        # Iniciar o bot
+        # Iniciar o bot com configurações ajustadas
         logger.info("Bot iniciado! Pressione Ctrl+C para parar.")
-        application.run_polling(drop_pending_updates=True)
+        
+        # Configuração ajustada para evitar conflitos
+        application.run_polling(
+            drop_pending_updates=True,  # Descarta atualizações pendentes
+            allowed_updates=allowed_updates,  # Limita tipos de atualizações processadas
+            poll_interval=1.0,  # Intervalo maior entre polls (padrão é 0.0)
+            timeout=30,  # Timeout maior para conexões
+            read_timeout=7  # Timeout de leitura ajustado
+        )
     except Exception as e:
         logger.error(f"Erro fatal ao iniciar o bot: {e}")
         raise
