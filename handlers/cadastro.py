@@ -7,6 +7,7 @@ Handlers para o processo de cadastro do CCB Alerta Bot
 
 import re
 import math
+import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     CommandHandler, MessageHandler, CallbackQueryHandler,
@@ -16,6 +17,9 @@ from telegram.ext import (
 from config import CODIGO, NOME, FUNCAO, CONFIRMAR
 from utils import salvar_cadastro, verificar_cadastro_existente
 from handlers.data import IGREJAS, FUNCOES, agrupar_igrejas, agrupar_funcoes, obter_igreja_por_codigo
+
+# Logger
+logger = logging.getLogger(__name__)
 
 # Estados adicionais para a navegação nos menus
 SELECIONAR_IGREJA, SELECIONAR_FUNCAO = range(4, 6)
@@ -28,6 +32,7 @@ async def iniciar_cadastro_etapas(update: Update, context: ContextTypes.DEFAULT_
     
     context.user_data['cadastro_temp'] = {'pagina_igreja': 0}
     
+    logger.info(f"Iniciando cadastro para usuário {update.effective_user.id}")
     await mostrar_menu_igrejas(update, context)
     return SELECIONAR_IGREJA
 
@@ -48,9 +53,15 @@ async def mostrar_menu_igrejas(update: Update, context: ContextTypes.DEFAULT_TYP
     # Preparar botões para a página atual
     keyboard = []
     for igreja in igrejas_paginadas[pagina_atual]:
+        # Criar callback data para este botão
+        callback_data = f"igreja_{igreja['codigo']}"
+        
+        # Log para depuração
+        logger.info(f"Criando botão com callback_data: {callback_data}")
+        
         keyboard.append([InlineKeyboardButton(
             f"{igreja['codigo']} - {igreja['nome']}", 
-            callback_data=f"igreja_{igreja['codigo']}"
+            callback_data=callback_data
         )])
     
     # Adicionar botões de navegação
@@ -73,15 +84,16 @@ async def mostrar_menu_igrejas(update: Update, context: ContextTypes.DEFAULT_TYP
         f"📄 *Página {pagina_atual + 1}/{len(igrejas_paginadas)}*"
     )
     
+    # Verificar se é atualização ou primeira exibição
     if isinstance(update, Update):
-        # Envio inicial do menu
+        # Primeira exibição
         await update.message.reply_text(
             texto_mensagem,
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
     else:
-        # Atualização do menu (via callback)
+        # Atualização via callback
         await update.edit_message_text(
             texto_mensagem,
             reply_markup=reply_markup,
@@ -94,6 +106,7 @@ async def processar_selecao_igreja(update: Update, context: ContextTypes.DEFAULT
     await query.answer()
     
     data = query.data
+    logger.info(f"Callback recebido: {data}")
     
     if data == "cancelar_cadastro":
         # Limpar dados do contexto
@@ -121,8 +134,8 @@ async def processar_selecao_igreja(update: Update, context: ContextTypes.DEFAULT
         await mostrar_menu_igrejas(query, context)
         return SELECIONAR_IGREJA
     
-    # Selecionar igreja
-    if data.startswith("igreja_"):
+    # Selecionar igreja (verificar se começa com igreja_BR)
+    if data.startswith("igreja_BR"):
         codigo_igreja = data.replace("igreja_", "")
         igreja = obter_igreja_por_codigo(codigo_igreja)
         
@@ -130,6 +143,8 @@ async def processar_selecao_igreja(update: Update, context: ContextTypes.DEFAULT
             # Armazenar código e nome da igreja
             context.user_data['cadastro_temp']['codigo'] = igreja['codigo']
             context.user_data['cadastro_temp']['nome_igreja'] = igreja['nome']
+            
+            logger.info(f"Igreja selecionada: {igreja['codigo']} - {igreja['nome']}")
             
             # Continuar para a próxima etapa (nome do responsável)
             await query.edit_message_text(
@@ -141,6 +156,7 @@ async def processar_selecao_igreja(update: Update, context: ContextTypes.DEFAULT
             return NOME
     
     # Fallback - mostrar menu novamente
+    logger.warning(f"Callback data não reconhecido: {data}")
     await mostrar_menu_igrejas(query, context)
     return SELECIONAR_IGREJA
 
@@ -157,6 +173,7 @@ async def receber_nome(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Armazenar temporariamente
     context.user_data['cadastro_temp']['nome'] = nome
+    logger.info(f"Nome recebido: {nome}")
     
     # Preparar e mostrar menu de funções
     context.user_data['cadastro_temp']['pagina_funcao'] = 0
@@ -180,9 +197,12 @@ async def mostrar_menu_funcoes(update: Update, context: ContextTypes.DEFAULT_TYP
     # Preparar botões para a página atual
     keyboard = []
     for funcao in funcoes_paginadas[pagina_atual]:
+        callback_data = f"funcao_{funcao}"
+        logger.info(f"Criando botão de função com callback_data: {callback_data}")
+        
         keyboard.append([InlineKeyboardButton(
             funcao,
-            callback_data=f"funcao_{funcao}"
+            callback_data=callback_data
         )])
     
     # Adicionar botões de navegação
@@ -230,6 +250,7 @@ async def processar_selecao_funcao(update: Update, context: ContextTypes.DEFAULT
     await query.answer()
     
     data = query.data
+    logger.info(f"Callback de função recebido: {data}")
     
     if data == "cancelar_cadastro":
         # Limpar dados do contexto
@@ -272,6 +293,7 @@ async def processar_selecao_funcao(update: Update, context: ContextTypes.DEFAULT
         
         # Armazenar função
         context.user_data['cadastro_temp']['funcao'] = funcao
+        logger.info(f"Função selecionada: {funcao}")
         
         # Continuar para confirmação
         codigo = context.user_data['cadastro_temp']['codigo']
@@ -301,6 +323,7 @@ async def processar_selecao_funcao(update: Update, context: ContextTypes.DEFAULT
         return CONFIRMAR
     
     # Fallback - mostrar menu novamente
+    logger.warning(f"Callback de função não reconhecido: {data}")
     await mostrar_menu_funcoes(query, context)
     return SELECIONAR_FUNCAO
 
@@ -317,6 +340,7 @@ async def receber_funcao(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Armazenar temporariamente
     context.user_data['cadastro_temp']['funcao'] = funcao
+    logger.info(f"Função digitada: {funcao}")
     
     # Preparar botões de confirmação
     keyboard = [
@@ -350,7 +374,10 @@ async def confirmar_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     
-    if query.data == "cancelar_etapas":
+    data = query.data
+    logger.info(f"Callback de confirmação: {data}")
+    
+    if data == "cancelar_etapas":
         # Limpar dados do contexto
         if 'cadastro_temp' in context.user_data:
             del context.user_data['cadastro_temp']
@@ -428,43 +455,149 @@ async def cancelar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if 'cadastro_temp' in context.user_data:
         del context.user_data['cadastro_temp']
     
-    await update.message.reply_text(
-        "🕊️ *A Santa Paz de Deus!*\n\n"
-        "❌ *Cadastro cancelado!*\n\n"
-        "Você pode iniciar novamente quando quiser usando /cadastrar.\n\n"
-        "_Deus te abençoe!_ 🙏",
-        parse_mode='Markdown'
-    )
+    # Verificar se é callback ou comando
+    if hasattr(update, 'callback_query'):
+        await update.callback_query.edit_message_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            "❌ *Cadastro cancelado!*\n\n"
+            "Você pode iniciar novamente quando quiser usando /cadastrar.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+    else:
+        await update.message.reply_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            "❌ *Cadastro cancelado!*\n\n"
+            "Você pode iniciar novamente quando quiser usando /cadastrar.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
     return ConversationHandler.END
+
+async def cadastro_comando(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Processa cadastro enviado via comando /cadastro"""
+    texto = update.message.text.replace('/cadastro', '').strip()
+    
+    # Verificar se há dados após o comando
+    if not texto:
+        await update.message.reply_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            "📝 *Cadastro Manual*\n\n"
+            "Para cadastrar manualmente, envie no formato:\n"
+            "`/cadastro BR21-0000 / Nome Completo / Função`\n\n"
+            "Exemplo:\n"
+            "`/cadastro BR21-0270 / João Silva / Cooperador`\n\n"
+            "Ou utilize o comando */cadastrar* para o processo guiado passo a passo.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        return
+    
+    # Verificar formato
+    if not verificar_formato_cadastro(texto):
+        await update.message.reply_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            "❌ *Formato inválido!*\n\n"
+            "📝 Por favor, use o formato correto:\n"
+            "`BR21-0000 / Seu Nome Completo / Sua Função`\n\n"
+            "📌 *Exemplo:*\n"
+            "`BR21-0270 / João Silva / Cooperador`\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        return
+    
+    # Extrair dados
+    codigo, nome, funcao = extrair_dados_cadastro(texto)
+    
+    if not codigo or not nome or not funcao:
+        await update.message.reply_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            "❌ *Não foi possível processar os dados!*\n\n"
+            "Por favor, verifique o formato e tente novamente.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        return
+    
+    # Verificar se já existe cadastro exatamente igual
+    if verificar_cadastro_existente(codigo, nome, funcao):
+        await update.message.reply_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            "⚠️ *Atenção!*\n\n"
+            f"Já existe um cadastro para a Casa de Oração *{codigo}* com o nome *{nome}* e função *{funcao}*.\n\n"
+            "Por favor, verifique os dados ou entre em contato com o administrador.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        return
+    
+    # Salvar cadastro
+    sucesso, status = salvar_cadastro(codigo, nome, funcao, 
+                                     update.effective_user.id, 
+                                     update.effective_user.username or "")
+    
+    if sucesso:
+        # Obter nome da igreja
+        igreja = obter_igreja_por_codigo(codigo)
+        nome_igreja = igreja['nome'] if igreja else "Desconhecida"
+        
+        await update.message.reply_text(
+            f"🕊️ *A Santa Paz de Deus!*\n\n"
+            f"✅ *Cadastro recebido com sucesso:*\n\n"
+            f"📍 *Código:* `{codigo}`\n"
+            f"🏢 *Casa:* `{nome_igreja}`\n"
+            f"👤 *Nome:* `{nome}`\n"
+            f"🔧 *Função:* `{funcao}`\n\n"
+            f"🗂️ Estamos em *fase de cadastro* dos irmãos responsáveis pelo acompanhamento.\n"
+            f"📢 Assim que esta fase for concluída, os *alertas automáticos de consumo* começarão a ser enviados.\n\n"
+            f"_Deus te abençoe!_ 🙌",
+            parse_mode='Markdown'
+        )
+    else:
+        await update.message.reply_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            "❌ *Houve um problema ao processar seu cadastro!*\n\n"
+            "Por favor, tente novamente mais tarde ou entre em contato com o administrador.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
 
 def registrar_handlers_cadastro(application):
     """Registra handlers relacionados ao cadastro"""
+    # Handler para cadastro manual via comando
+    application.add_handler(CommandHandler("cadastro", cadastro_comando))
+    
     # Handler para cadastro em etapas (conversation)
     cadastro_handler = ConversationHandler(
-        entry_points=[CommandHandler("cadastrar", iniciar_cadastro_etapas)],
+        entry_points=[
+            CommandHandler("cadastrar", iniciar_cadastro_etapas),
+            # Adicionar MessageHandler para processar clique no botão de menu também
+            MessageHandler(filters.Regex(r"^🖋️ Cadastrar Responsável$"), iniciar_cadastro_etapas)
+        ],
         states={
             SELECIONAR_IGREJA: [
-                CallbackQueryHandler(processar_selecao_igreja, pattern='^igreja_')
+                # Ajustar padrão para reconhecer todos os tipos de callback de igreja
+                CallbackQueryHandler(processar_selecao_igreja, pattern=r'^igreja_')
             ],
             NOME: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, receber_nome)
             ],
             SELECIONAR_FUNCAO: [
-                CallbackQueryHandler(processar_selecao_funcao, pattern='^funcao_')
+                CallbackQueryHandler(processar_selecao_funcao, pattern=r'^funcao_')
             ],
             FUNCAO: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, receber_funcao)
             ],
             CONFIRMAR: [
-                CallbackQueryHandler(confirmar_etapas, pattern='^(confirmar|cancelar)_etapas$')
+                CallbackQueryHandler(confirmar_etapas, pattern=r'^(confirmar|cancelar)_etapas$')
             ]
         },
         fallbacks=[
             CommandHandler("cancelar", cancelar_cadastro),
-            CallbackQueryHandler(processar_selecao_igreja, pattern='^igreja_'),
-            CallbackQueryHandler(processar_selecao_funcao, pattern='^funcao_'),
-            CallbackQueryHandler(cancelar_cadastro, pattern='^cancelar_cadastro$')
+            CallbackQueryHandler(cancelar_cadastro, pattern=r'^cancelar_cadastro$')
         ],
-        per_message=False
+        name="cadastro_conversation",
+        persistent=False
     )
     application.add_handler(cadastro_handler)
