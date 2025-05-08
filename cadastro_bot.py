@@ -122,6 +122,7 @@ def salvar_cadastro(texto, user_id, username):
     except Exception as e:
         print(f"Erro ao salvar cadastro: {e}")
         return False, str(e)
+        
 async def cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Processa um cadastro enviado com /cadastro"""
     texto = update.message.text.replace('/cadastro', '').strip()
@@ -291,6 +292,7 @@ async def processar_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         # Limpar dados do contexto
         if 'cadastro_pendente' in context.user_data:
             del context.user_data['cadastro_pendente']
+            
 async def exportar_planilha(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Envia a planilha de cadastros como um arquivo (apenas para administradores)"""
     # Verificar se o usuário é administrador
@@ -475,6 +477,7 @@ async def processar_callback_admin(update: Update, context: ContextTypes.DEFAULT
             "_Deus te abençoe!_ 🙏",
             parse_mode='Markdown'
         )
+        
 # Comando para adicionar um administrador (apenas para administradores)
 async def adicionar_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Adiciona um novo administrador (apenas para administradores)"""
