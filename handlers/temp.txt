@@ -1,2 +1,0 @@
-handlers/temp.txt
-temçp
