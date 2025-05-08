@@ -43,14 +43,14 @@ IGREJAS = [
     {"codigo": "BR21-0920", "nome": "CHÁCARA MARIA FRANCISCA"}
 ]
 
-# Lista de funções disponíveis - Corrigida conforme especificação
+# Lista de funções disponíveis - Com ordem hierárquica correta
 FUNCOES = [
-    "Encarregado da Manutenção",
-    "Auxiliar da Escrita",
-    "Cooperador",
-    "Diácono",
     "Ancião",
-    "Auxiliar"
+    "Diácono",
+    "Cooperador",
+    "Encarregado da Manutenção", 
+    "Auxiliar da Escrita",
+    "Outro"
 ]
 
 # Agrupar igrejas por blocos para menu paginado
