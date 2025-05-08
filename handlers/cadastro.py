@@ -110,7 +110,8 @@ def registrar_handlers_cadastro(application):
             CODIGO: [MessageHandler(filters.TEXT & ~filters.COMMAND, receber_codigo)],
             NOME: [MessageHandler(filters.TEXT & ~filters.COMMAND, receber_nome)],
             FUNCAO: [MessageHandler(filters.TEXT & ~filters.COMMAND, receber_funcao)],
-            CONFIRMAR: [CallbackQueryHandler(confirmar_etapas, pattern='^(confirmar_etapas|cancelar_etapas) iniciar_cadastro_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
+            CONFIRMAR: [CallbackQueryHandler(confirmar_etapas, pattern='^(confirmar_etapas|cancelar_etapas)$')]
+            
     """Inicia o processo de cadastro passo a passo"""
     await update.message.reply_text(
         "🕊️ *A Santa Paz de Deus!*\n\n"
