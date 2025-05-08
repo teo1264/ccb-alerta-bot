@@ -12,7 +12,8 @@ async def mensagem_boas_vindas(update: Update, context: ContextTypes.DEFAULT_TYP
     """Responde a qualquer mensagem com uma saudação e instruções"""
     # Criar botões de menu principal
     keyboard = [
-        [KeyboardButton("🖋️ Cadastrar Responsável")],
+        # Botão de cadastro maior e destacado
+        [KeyboardButton("📝 CADASTRAR RESPONSÁVEL 📝")],
         [KeyboardButton("ℹ️ Ajuda"), KeyboardButton("🆔 Meu ID")]
     ]
     reply_markup = ReplyKeyboardMarkup(
