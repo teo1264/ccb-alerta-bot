@@ -1,3 +1,5 @@
+# Para o sistema de conversação em etapas
+from telegram.ext import ConversationHandler
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 import os
@@ -579,6 +581,177 @@ def carregar_admin_ids():
     except Exception as e:
         print(f"Erro ao carregar IDs de administradores: {e}")
 
+async def iniciar_cadastro_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Inicia o processo de cadastro passo a passo"""
+    await update.message.reply_text(
+        "🕊️ *A Santa Paz de Deus!*\n\n"
+        "Vamos iniciar o cadastro da Casa de Oração.\n\n"
+        "Digite o número da Casa de Oração (somente números):",
+        parse_mode='Markdown'
+    )
+    return CODIGO
+
+async def receber_codigo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Recebe o código da casa e solicita o nome"""
+    numero = update.message.text.strip()
+    
+    # Validar se é um número
+    if not numero.isdigit():
+        await update.message.reply_text(
+            "❌ Por favor, digite apenas números.\n\n"
+            "Digite o número da Casa de Oração:"
+        )
+        return CODIGO
+    
+    # Formatar o código no padrão desejado
+    codigo_formatado = f"BR21-{numero.zfill(4)}"
+    
+    # Verificar duplicata
+    if verificar_duplicata(codigo_formatado):
+        await update.message.reply_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            "⚠️ *Atenção!*\n\n"
+            f"O código da Casa de Oração *{codigo_formatado}* já está cadastrado no sistema.\n\n"
+            "Por favor, verifique o número ou entre em contato com o administrador.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        return ConversationHandler.END
+    
+    # Armazenar temporariamente
+    context.user_data['codigo'] = codigo_formatado
+    
+    await update.message.reply_text(
+        f"✅ Código registrado: *{codigo_formatado}*\n\n"
+        "Agora, digite o nome do responsável:",
+        parse_mode='Markdown'
+    )
+    return NOME
+
+async def receber_nome(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Recebe o nome e solicita a função"""
+    nome = update.message.text.strip()
+    
+    # Validação básica
+    if len(nome) < 3:
+        await update.message.reply_text(
+            "❌ Por favor, digite um nome válido com pelo menos 3 caracteres."
+        )
+        return NOME
+    
+    # Armazenar temporariamente
+    context.user_data['nome'] = nome
+    
+    await update.message.reply_text(
+        f"✅ Nome registrado: *{nome}*\n\n"
+        "Agora, digite a função do responsável (Exemplo: Cooperador, Diácono, etc.):",
+        parse_mode='Markdown'
+    )
+    return FUNCAO
+
+async def receber_funcao(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Recebe a função e mostra resumo para confirmação"""
+    funcao = update.message.text.strip()
+    
+    # Validação básica
+    if len(funcao) < 3:
+        await update.message.reply_text(
+            "❌ Por favor, digite uma função válida com pelo menos 3 caracteres."
+        )
+        return FUNCAO
+    
+    # Armazenar temporariamente
+    context.user_data['funcao'] = funcao
+    
+    # Preparar botões de confirmação
+    keyboard = [
+        [
+            InlineKeyboardButton("✅ Confirmar Cadastro", callback_data="confirmar_etapas"),
+            InlineKeyboardButton("❌ Cancelar", callback_data="cancelar_etapas")
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(
+        "🕊️ *A Santa Paz de Deus!*\n\n"
+        "📝 *Confirme os dados do cadastro:*\n\n"
+        f"📍 *Código:* `{context.user_data['codigo']}`\n"
+        f"👤 *Nome:* `{context.user_data['nome']}`\n"
+        f"🔧 *Função:* `{context.user_data['funcao']}`\n\n"
+        "Os dados estão corretos?",
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
+    return CONFIRMAR
+
+async def confirmar_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Processa a confirmação do cadastro em etapas"""
+    query = update.callback_query
+    await query.answer()
+    
+    if query.data == "cancelar_etapas":
+        # Limpar dados do contexto
+        context.user_data.clear()
+        
+        await query.edit_message_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            "❌ *Cadastro cancelado!*\n\n"
+            "Você pode iniciar novamente quando quiser usando /cadastrar.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        return ConversationHandler.END
+    
+    # Obter dados do contexto
+    codigo = context.user_data.get('codigo', '')
+    nome = context.user_data.get('nome', '')
+    funcao = context.user_data.get('funcao', '')
+    
+    # Formatar texto completo (para compatibilidade com a função existente)
+    texto_completo = f"{codigo} / {nome} / {funcao}"
+    
+    # Salvar cadastro usando a função existente
+    sucesso, status = salvar_cadastro(texto_completo, update.effective_user.id, update.effective_user.username)
+    
+    if sucesso:
+        await query.edit_message_text(
+            f"🕊️ *A Santa Paz de Deus!*\n\n"
+            f"✅ *Cadastro recebido com sucesso:*\n\n"
+            f"📍 *Código:* `{codigo}`\n"
+            f"👤 *Nome:* `{nome}`\n"
+            f"🔧 *Função:* `{funcao}`\n\n"
+            f"🗂️ Estamos em *fase de cadastro* dos irmãos responsáveis pelo acompanhamento.\n"
+            f"📢 Assim que esta fase for concluída, os *alertas automáticos de consumo* começarão a ser enviados.\n\n"
+            f"_Deus te abençoe!_ 🙌",
+            parse_mode='Markdown'
+        )
+    else:
+        await query.edit_message_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            "❌ *Houve um problema ao processar seu cadastro!*\n\n"
+            "Por favor, tente novamente mais tarde ou entre em contato com o administrador.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+    
+    # Limpar dados do contexto
+    context.user_data.clear()
+    return ConversationHandler.END
+
+async def cancelar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancela o cadastro em qualquer etapa"""
+    # Limpar dados do contexto
+    context.user_data.clear()
+    
+    await update.message.reply_text(
+        "🕊️ *A Santa Paz de Deus!*\n\n"
+        "❌ *Cadastro cancelado!*\n\n"
+        "Você pode iniciar novamente quando quiser usando /cadastrar.\n\n"
+        "_Deus te abençoe!_ 🙏",
+        parse_mode='Markdown'
+    )
+    return ConversationHandler.END
+    
 def main():
     # Carregar IDs de administradores
     carregar_admin_ids()
@@ -589,10 +762,25 @@ def main():
     # Criar aplicação
     application = Application.builder().token(TOKEN).build()
     
+    # Conversation handler para cadastro em etapas
+    cadastro_handler = ConversationHandler(
+        entry_points=[CommandHandler("cadastrar", iniciar_cadastro_etapas)],
+        states={
+            CODIGO: [MessageHandler(filters.TEXT & ~filters.COMMAND, receber_codigo)],
+            NOME: [MessageHandler(filters.TEXT & ~filters.COMMAND, receber_nome)],
+            FUNCAO: [MessageHandler(filters.TEXT & ~filters.COMMAND, receber_funcao)],
+            CONFIRMAR: [CallbackQueryHandler(confirmar_etapas, pattern='^(confirmar_etapas|cancelar_etapas)$')]
+        },
+        fallbacks=[CommandHandler("cancelar", cancelar_cadastro)]
+    )
+    
     # Handlers para comandos básicos
     application.add_handler(CommandHandler("start", mensagem_boas_vindas))
-    application.add_handler(CommandHandler("cadastro", cadastro))
+    application.add_handler(CommandHandler("cadastro", cadastro))  # Manter o método antigo também
     application.add_handler(CommandHandler("meu_id", mostrar_id))
+    
+    # Adicionar o novo handler de cadastro em etapas
+    application.add_handler(cadastro_handler)
     
     # Handlers para comandos administrativos
     application.add_handler(CommandHandler("exportar", exportar_planilha))
@@ -600,7 +788,7 @@ def main():
     application.add_handler(CommandHandler("limpar", limpar_cadastros))
     application.add_handler(CommandHandler("admin_add", adicionar_admin))
     
-    # Handler para mensagens de texto
+    # Handler para mensagens de texto (manter o comportamento original para compatibilidade)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, processar_cadastro_simples))
     
     # Handlers para callbacks
@@ -609,7 +797,4 @@ def main():
     
     # Iniciar o bot com polling
     print("Bot iniciado!")
-    application.run_polling(drop_pending_updates=True)
-
-if __name__ == '__main__':
-    main()  
+    application.run_polling(drop_pending_updates=True)  # Adicionada opção para evitar conflitos
