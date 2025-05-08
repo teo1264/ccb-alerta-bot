@@ -10,7 +10,7 @@ TOKEN = "7773179413:AAHqJp-NBPPs6YrSV1kB5-q4vkV3tjDFyy4"
 EXCEL_FILE = "responsaveis_casas.xlsx"
 
 # Coloque aqui o seu ID do Telegram e de outros administradores
-ADMIN_IDS = [6661599889]  # Substitua pelos IDs reais dos administradores
+ADMIN_IDS = [5876346562]  # Substitua pelos IDs reais dos administradores
 
 async def mensagem_boas_vindas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Responde a qualquer mensagem com uma saudação e instruções"""
