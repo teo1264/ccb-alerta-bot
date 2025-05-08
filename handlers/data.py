@@ -43,12 +43,12 @@ IGREJAS = [
     {"codigo": "BR21-0920", "nome": "CHÁCARA MARIA FRANCISCA"}
 ]
 
-# Lista de funções disponíveis - Com ordem hierárquica correta
+# Lista de funções disponíveis - Encarregado da Manutenção como primeira opção
 FUNCOES = [
+    "Encarregado da Manutenção",
     "Ancião",
     "Diácono",
     "Cooperador",
-    "Encarregado da Manutenção", 
     "Auxiliar da Escrita",
     "Outro"
 ]
