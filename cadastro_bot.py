@@ -26,11 +26,8 @@ async def mensagem_boas_vindas(update: Update, context: ContextTypes.DEFAULT_TYP
         "• 💧 Consumo excessivo de água (BRK)\n"
         "• ⚡ Consumo fora do padrão de energia (ENEL)\n"
         "• ☀️ Relatórios mensais de compensação (para casas com sistema fotovoltaico)\n\n"
-        "📝 *Como se cadastrar?*\n"
-        "Envie a seguinte mensagem (sem acento):\n"
-        "`BR21-0000 / Seu Nome Completo / Sua Função`\n\n"
-        "📌 *Exemplo:*\n"
-        "`BR21-0270 / João Silva / Cooperador`\n\n"
+        "📝 *Como se cadastrar?*\n\n"
+        "Digite */cadastrar* para iniciar o processo de cadastro passo a passo.\n\n"
         "👥 Destinado a:\n"
         "✅ Cooperadores\n"
         "✅ Encarregados de Manutenção\n"
@@ -189,41 +186,21 @@ def verificar_formato_cadastro(texto):
     return bool(re.match(padrao, texto, re.IGNORECASE))
 
 async def processar_cadastro_simples(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Processa qualquer mensagem como um possível cadastro"""
+    """Processa qualquer mensagem e orienta para o novo método de cadastro"""
     texto = update.message.text.strip()
     
     # Mostrar ID do usuário para ajudar na configuração
     user_id = update.effective_user.id
     print(f"Mensagem recebida do usuário ID: {user_id}, Username: @{update.effective_user.username}")
     
-    # Verificar se parece com um formato de cadastro
-    if verificar_formato_cadastro(texto):
-        # Confirmar cadastro com botões
-        keyboard = [
-            [
-                InlineKeyboardButton("✅ Confirmar Cadastro", callback_data="confirmar"),
-                InlineKeyboardButton("❌ Cancelar", callback_data="cancelar")
-            ]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        # Separar partes do cadastro para exibição
-        partes = [p.strip() for p in texto.split('/')]
-        codigo = partes[0].strip()
-        nome = partes[1].strip() if len(partes) > 1 else ""
-        funcao = partes[2].strip() if len(partes) > 2 else ""
-        
-        # Armazenar dados no contexto para uso posterior
-        context.user_data['cadastro_pendente'] = texto
-        
+    # Se parece com uma tentativa de cadastro no formato antigo
+    if "/" in texto and ("BR" in texto.upper() or "-" in texto):
         await update.message.reply_text(
             "🕊️ *A Santa Paz de Deus!*\n\n"
-            "📝 *Confirme os dados do cadastro:*\n\n"
-            f"📍 *Código:* `{codigo}`\n"
-            f"👤 *Nome:* `{nome}`\n"
-            f"🔧 *Função:* `{funcao}`\n\n"
-            "Os dados estão corretos?",
-            reply_markup=reply_markup,
+            "📝 *Nova forma de cadastro!*\n\n"
+            "Temos um processo mais simples para cadastro.\n\n"
+            "Por favor, digite */cadastrar* e siga as instruções passo a passo.\n\n"
+            "_Deus te abençoe!_ 🙏",
             parse_mode='Markdown'
         )
     else:
