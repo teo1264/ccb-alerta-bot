@@ -18,6 +18,12 @@ CODIGO, NOME, FUNCAO, CONFIRMAR = range(4)
 
 async def mensagem_boas_vindas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Responde a qualquer mensagem com uma saudação e instruções"""
+    # Botão para iniciar cadastro
+    keyboard = [
+        [InlineKeyboardButton("📝 Iniciar Cadastro", callback_data="iniciar_cadastro")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
     await update.message.reply_text(
         "🕊️ *A Santa Paz de Deus!*\n\n"
         "📢 *Bem-vindo ao sistema de alertas automáticos da CCB ADM Mauá!*\n\n"
@@ -26,20 +32,18 @@ async def mensagem_boas_vindas(update: Update, context: ContextTypes.DEFAULT_TYP
         "• 💧 Consumo excessivo de água (BRK)\n"
         "• ⚡ Consumo fora do padrão de energia (ENEL)\n"
         "• ☀️ Relatórios mensais de compensação (para casas com sistema fotovoltaico)\n\n"
-        "📝 *Como se cadastrar?*\n"
-        "Envie a seguinte mensagem (sem acento):\n"
-        "`BR21-0000 / Seu Nome Completo / Sua Função`\n\n"
-        "📌 *Exemplo:*\n"
-        "`BR21-0270 / João Silva / Cooperador`\n\n"
+        "📝 *Como se cadastrar?*\n\n"
+        "Clique no botão abaixo ou digite */cadastrar* para iniciar.\n\n"
         "👥 Destinado a:\n"
         "✅ Cooperadores\n"
         "✅ Encarregados de Manutenção\n"
         "✅ Responsáveis pela Escrita\n"
         "✅ E demais irmãos do ministério\n\n"
         "_Deus te abençoe!_ 🙏",
+        reply_markup=reply_markup,
         parse_mode='Markdown'
     )
-
+    
 def inicializar_planilha():
     """Inicializa a planilha de cadastros se não existir"""
     if not os.path.exists(EXCEL_FILE):
@@ -754,6 +758,32 @@ async def cancelar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return ConversationHandler.END
     
+async def processar_callback_inicio(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Processa callback do botão de iniciar cadastro"""
+    query = update.callback_query
+    await query.answer()
+    
+    if query.data == "iniciar_cadastro":
+        # Editar a mensagem original para indicar que o cadastro está iniciando
+        await query.edit_message_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            "📝 *Iniciando processo de cadastro...*\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        
+        # Enviar nova mensagem para iniciar o cadastro
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="🕊️ *A Santa Paz de Deus!*\n\n"
+                 "Vamos iniciar o cadastro da Casa de Oração.\n\n"
+                 "Digite o número da Casa de Oração (somente números):",
+            parse_mode='Markdown'
+        )
+        
+        # Retornar o estado para iniciar a conversa
+        return CODIGO
+        
 def main():
     # Carregar IDs de administradores
     carregar_admin_ids()
@@ -766,7 +796,7 @@ def main():
     
     # Handlers para comandos básicos
     application.add_handler(CommandHandler("start", mensagem_boas_vindas))
-    application.add_handler(CommandHandler("cadastro", cadastro))
+    application.add_handler(CommandHandler("cadastro", cadastro))  # Manter para compatibilidade ou remover
     application.add_handler(CommandHandler("meu_id", mostrar_id))
     
     # Handlers para comandos administrativos
@@ -775,16 +805,12 @@ def main():
     application.add_handler(CommandHandler("limpar", limpar_cadastros))
     application.add_handler(CommandHandler("admin_add", adicionar_admin))
     
-    # Handler para mensagens de texto
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, processar_cadastro_simples))
-    
-    # Handlers para callbacks
-    application.add_handler(CallbackQueryHandler(processar_callback, pattern='^(confirmar|cancelar)$'))
-    application.add_handler(CallbackQueryHandler(processar_callback_admin, pattern='^(confirmar_limpar|cancelar_limpar)$'))
-    
-    # NOVO: Adicionar handler para cadastro em etapas
+    # Conversation handler para cadastro em etapas
     cadastro_handler = ConversationHandler(
-        entry_points=[CommandHandler("cadastrar", iniciar_cadastro_etapas)],
+        entry_points=[
+            CommandHandler("cadastrar", iniciar_cadastro_etapas)
+            # Não adicionar o callback aqui, pois ele precisa chamar a função diretamente
+        ],
         states={
             CODIGO: [MessageHandler(filters.TEXT & ~filters.COMMAND, receber_codigo)],
             NOME: [MessageHandler(filters.TEXT & ~filters.COMMAND, receber_nome)],
@@ -795,6 +821,16 @@ def main():
     )
     application.add_handler(cadastro_handler)
     
-    # Adicionar opção para evitar conflitos
+    # Handler para mensagens de texto
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, processar_cadastro_simples))
+    
+    # Handlers para callbacks
+    application.add_handler(CallbackQueryHandler(processar_callback, pattern='^(confirmar|cancelar)$'))
+    application.add_handler(CallbackQueryHandler(processar_callback_admin, pattern='^(confirmar_limpar|cancelar_limpar)$'))
+    
+    # NOVO: Handler para o botão de iniciar cadastro
+    application.add_handler(CallbackQueryHandler(processar_callback_inicio, pattern='^iniciar_cadastro$'))
+    
+    # Iniciar o bot com polling
     print("Bot iniciado!")
     application.run_polling(drop_pending_updates=True)
