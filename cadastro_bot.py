@@ -4,7 +4,7 @@ import os
 import pandas as pd
 from datetime import datetime
 
-TOKEN = "773179413:AAH5o3_hSLNBUPVmZ9EfR8_diIadln9kGHI"
+TOKEN = "7773179413:AAHqJp-NBPPs6YrSV1kB5-q4vkV3tjDFyy4"
 EXCEL_FILE = "responsaveis_casas.xlsx"
 
 async def mensagem_boas_vindas(update: Update, context: ContextTypes.DEFAULT_TYPE):
