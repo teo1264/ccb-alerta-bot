@@ -12,6 +12,7 @@ async def mensagem_boas_vindas(update: Update, context: ContextTypes.DEFAULT_TYP
     await update.message.reply_text(
         "A Santa Paz de Deus!\n\n"
         "Este é o sistema gratuito de alertas automáticos para as Casas de Oração da CCB ADM Mauá.\n\n"
+        "Neste estágio estamos em Fase de Desenvolvimento.\n\n"
         "Você receberá alertas sobre:\n"
         "• Aumentos no consumo de água (BRK) e energia (ENEL)\n"
         "• Futuramente Relatórios de compensação para casas com sistema fotovoltaico\n\n"
