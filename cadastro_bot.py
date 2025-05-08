@@ -1,4 +1,4 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+        from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 import os
 import pandas as pd
@@ -292,7 +292,7 @@ async def processar_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         # Limpar dados do contexto
         if 'cadastro_pendente' in context.user_data:
             del context.user_data['cadastro_pendente']
- async def exportar_planilha(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def exportar_planilha(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Envia a planilha de cadastros como um arquivo (apenas para administradores)"""
     # Verificar se o usuário é administrador
     if update.effective_user.id not in ADMIN_IDS:
@@ -611,4 +611,4 @@ def main():
     application.run_polling()
 
 if __name__ == '__main__':
-    main()           
+    main()            
