@@ -67,17 +67,15 @@ def main():
         # Iniciar o bot com configurações ajustadas
         logger.info("Bot iniciado! Pressione Ctrl+C para parar.")
         
-        # Configuração ajustada para evitar conflitos
+        # Configuração ajustada para evitar conflitos, compatível com versão atual
         application.run_polling(
-            drop_pending_updates=True,  # Descarta atualizações pendentes
-            allowed_updates=allowed_updates,  # Limita tipos de atualizações processadas
-            poll_interval=1.0,  # Intervalo maior entre polls (padrão é 0.0)
-            timeout=30,  # Timeout maior para conexões
-            read_timeout=7  # Timeout de leitura ajustado
+            drop_pending_updates=True,     # Descarta atualizações pendentes
+            allowed_updates=allowed_updates,  # Limita tipos de atualizações
+            poll_interval=1.0              # Intervalo maior entre polls
         )
     except Exception as e:
         logger.error(f"Erro fatal ao iniciar o bot: {e}")
         raise
-
+        
 if __name__ == "__main__":
     main()
