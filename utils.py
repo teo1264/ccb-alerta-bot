@@ -240,3 +240,60 @@ def fazer_backup_planilha():
     except Exception as e:
         print(f"Erro ao fazer backup: {e}")
         return None
+
+def verificar_cadastro_existente(codigo, nome, funcao=None):
+    """
+    Verifica se já existe cadastro exatamente igual (mesmo código, nome e função)
+    
+    Args:
+        codigo (str): Código da casa a verificar
+        nome (str): Nome do responsável
+        funcao (str, optional): Função do responsável
+        
+    Returns:
+        bool: True se já existe cadastro exatamente igual, False caso contrário
+    """
+    try:
+        if not os.path.exists(EXCEL_FILE):
+            return False
+            
+        df = pd.read_excel(EXCEL_FILE)
+        
+        # Se dataframe estiver vazio, não há duplicatas
+        if df.empty:
+            return False
+            
+        # Normaliza dados para comparação
+        codigo_normalizado = codigo.strip().upper()
+        nome_normalizado = nome.strip().upper()
+        
+        # Filtra por código
+        df_codigos = df['Codigo_Casa'].astype(str).apply(lambda x: x.strip().upper())
+        registros_mesmo_codigo = df[df_codigos == codigo_normalizado]
+        
+        if registros_mesmo_codigo.empty:
+            return False
+            
+        # Normaliza nomes dos cadastros existentes
+        nomes_existentes = registros_mesmo_codigo['Nome'].astype(str).apply(lambda x: x.strip().upper())
+        
+        # Filtra por nome
+        registros_mesmo_codigo_nome = registros_mesmo_codigo[nomes_existentes == nome_normalizado]
+        
+        if registros_mesmo_codigo_nome.empty:
+            return False
+            
+        # Se funcao for None, verificamos apenas código e nome
+        if funcao is None:
+            return True
+            
+        # Normaliza função
+        funcao_normalizada = funcao.strip().upper()
+        funcoes_existentes = registros_mesmo_codigo_nome['Funcao'].astype(str).apply(lambda x: x.strip().upper())
+        
+        # Verifica se existe o mesmo código, nome e função
+        return (funcao_normalizada == funcoes_existentes).any()
+        
+    except Exception as e:
+        print(f"Erro ao verificar cadastro existente: {e}")
+        return False
