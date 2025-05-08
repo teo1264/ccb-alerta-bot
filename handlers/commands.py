@@ -2,70 +2,107 @@
 # -*- coding: utf-8 -*-
 
 """
-Handlers para comandos básicos do CCB Alerta Bot
+Handlers para processamento de mensagens de texto do CCB Alerta Bot
 """
 
+import re
+import random
 from telegram import Update
-from telegram.ext import CommandHandler, ContextTypes
+from telegram.ext import MessageHandler, filters, ContextTypes
 
-async def mensagem_boas_vindas(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Responde a qualquer mensagem com uma saudação e instruções"""
-    await update.message.reply_text(
-        "🕊️ *A Santa Paz de Deus!*\n\n"
-        "📢 *Bem-vindo ao sistema de alertas automáticos da CCB ADM Mauá!*\n\n"
-        "⚙️ Este serviço está em *fase de desenvolvimento* e funcionará de forma gratuita, auxiliando na gestão das Casas de Oração.\n\n"
-        "🔔 *Você receberá alertas sobre:*\n"
-        "• 💧 Consumo excessivo de água (BRK)\n"
-        "• ⚡ Consumo fora do padrão de energia (ENEL)\n"
-        "• ☀️ Relatórios mensais de compensação (para casas com sistema fotovoltaico)\n\n"
-        "📝 *Como se cadastrar?*\n\n"
-        "Digite */cadastrar* para iniciar o processo de cadastro passo a passo.\n\n"
-        "👥 Destinado a:\n"
-        "✅ Cooperadores\n"
-        "✅ Encarregados de Manutenção\n"
-        "✅ Responsáveis pela Escrita\n"
-        "✅ E demais irmãos do ministério\n\n"
-        "_Deus te abençoe!_ 🙏",
-        parse_mode='Markdown'
-    )
+from handlers.commands import mensagem_boas_vindas
+from handlers.cadastro import iniciar_cadastro_etapas
 
-async def mostrar_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Mostra o ID do usuário que enviou a mensagem"""
-    user_id = update.effective_user.id
-    username = update.effective_user.username or "Sem username"
-    first_name = update.effective_user.first_name or "Sem nome"
+# Expressões de louvor e suas respostas
+EXPRESSOES_LOUVOR = [
+    # Amém e variações
+    r'\bamem\b',
+    r'\bamén\b',
+    r'\bamen\b',
+    r'\bglória\b', 
+    r'\bgloria\b',
+    r'\bglória a deus\b',
+    r'\bgloria a deus\b',
+    r'\baleluia\b',
+    r'\baleluya\b',
+    r'\baleluiah\b',
+    r'\bpaz de deus\b',
+    r'\bsanta paz\b',
+    r'\bpaz do senhor\b',
+    r'\bdeus seja louvado\b',
+    r'\bdeus é bom\b',
+    r'\bdeus é fiel\b'
+]
+
+# Respostas inspiradoras com emojis
+RESPOSTAS_LOUVOR = [
+    "🕊️ Glória a Deus! ✨",
+    "🙌 Amém, irmão(ã)! Deus é bom o tempo todo!",
+    "✝️ A Paz de Deus! Que o Senhor te abençoe.",
+    "🙏 Aleluia! Louvado seja o Senhor!",
+    "🕊️ A Santa Paz! Deus seja louvado.",
+    "✨ Glória a Deus nas alturas!",
+    "🌿 Paz seja contigo! O Senhor te guarde.",
+    "🌟 Deus é fiel! Que Ele te abençoe sempre.",
+    "🙏 Amém! Que a graça do Senhor esteja contigo.",
+    "🕊️ Aleluia! A paz do Senhor Jesus."
+]
+
+async def processar_mensagem(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Processa mensagens de texto e orienta o usuário
     
-    await update.message.reply_text(
-        f"🕊️ *A Santa Paz de Deus!*\n\n"
-        f"📋 *Suas informações:*\n\n"
-        f"🆔 *Seu ID:* `{user_id}`\n"
-        f"👤 *Username:* @{username}\n"
-        f"📝 *Nome:* {first_name}\n\n"
-        f"_Guarde seu ID para configurar como administrador!_",
-        parse_mode='Markdown'
-    )
+    Esta função é chamada quando o usuário envia uma mensagem que não é um comando.
+    Verifica se é um botão do menu, uma expressão de louvor, tentativa de cadastro, etc.
+    """
+    texto = update.message.text.strip()
+    
+    # Mostrar ID do usuário para ajudar na depuração
+    user_id = update.effective_user.id
+    print(f"Mensagem recebida do usuário ID: {user_id}, Username: @{update.effective_user.username}")
+    
+    # Verificar se é um clique em botão do menu
+    if texto == "🖋️ Cadastrar Responsável":
+        # Inicia o fluxo de cadastro como se o usuário tivesse usado o comando /cadastrar
+        return await iniciar_cadastro_etapas(update, context)
+    
+    elif texto == "ℹ️ Ajuda":
+        # Executa o comando de ajuda
+        from handlers.commands import mostrar_ajuda
+        return await mostrar_ajuda(update, context)
+    
+    elif texto == "🆔 Meu ID":
+        # Executa o comando para mostrar ID
+        from handlers.commands import mostrar_id
+        return await mostrar_id(update, context)
+    
+    # Verificar se é uma expressão de louvor (versão em minúsculas para comparação)
+    texto_lower = texto.lower()
+    for padrao in EXPRESSOES_LOUVOR:
+        if re.search(padrao, texto_lower):
+            # Escolher uma resposta aleatória
+            resposta = random.choice(RESPOSTAS_LOUVOR)
+            await update.message.reply_text(resposta)
+            return
+    
+    # Se parece com uma tentativa de cadastro no formato antigo
+    if "/" in texto and ("BR" in texto.upper() or "-" in texto):
+        await update.message.reply_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            "📝 *Nova forma de cadastro!*\n\n"
+            "Temos um processo mais simples para cadastro.\n\n"
+            "Por favor, clique no botão *🖋️ Cadastrar Responsável* ou digite */cadastrar* para iniciar o processo passo a passo.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+    else:
+        # Se não parece um cadastro, envia a mensagem de boas-vindas
+        await mensagem_boas_vindas(update, context)
 
-async def mostrar_ajuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Exibe a lista de comandos disponíveis"""
-    await update.message.reply_text(
-        "🕊️ *A Santa Paz de Deus!*\n\n"
-        "📋 *Lista de Comandos Disponíveis:*\n\n"
-        "*/start* - Exibe a mensagem de boas-vindas\n"
-        "*/cadastrar* - Inicia o processo de cadastro passo a passo\n"
-        "*/meu_id* - Mostra seu ID do Telegram\n"
-        "*/ajuda* - Exibe esta lista de comandos\n\n"
-        "*Comandos para Administradores:*\n"
-        "*/exportar* - Exporta a planilha de cadastros\n"
-        "*/listar* - Lista todos os cadastros\n"
-        "*/limpar* - Remove todos os cadastros (com confirmação)\n"
-        "*/admin_add ID* - Adiciona um novo administrador\n\n"
-        "_Deus te abençoe!_ 🙏",
-        parse_mode='Markdown'
-    )
-
-def registrar_comandos_basicos(application):
-    """Registra handlers para comandos básicos"""
-    application.add_handler(CommandHandler("start", mensagem_boas_vindas))
-    application.add_handler(CommandHandler("meu_id", mostrar_id))
-    application.add_handler(CommandHandler("ajuda", mostrar_ajuda))
-    application.add_handler(CommandHandler("help", mostrar_ajuda))
+def registrar_handlers_mensagens(application):
+    """Registra handlers para mensagens de texto"""
+    # Handler para mensagens de texto que não são comandos
+    application.add_handler(MessageHandler(
+        filters.TEXT & ~filters.COMMAND, 
+        processar_mensagem
+    ))
