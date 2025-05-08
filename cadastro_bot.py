@@ -10,17 +10,25 @@ EXCEL_FILE = "responsaveis_casas.xlsx"
 async def mensagem_boas_vindas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Responde a qualquer mensagem com uma saudação e instruções"""
     await update.message.reply_text(
-        "A Santa Paz de Deus!\n\n"
-        "Este é o sistema gratuito de alertas automáticos para as Casas de Oração da CCB ADM Mauá.\n\n"
-        "Neste estágio estamos em Fase de Desenvolvimento.\n\n"
-        "Você receberá alertas sobre:\n"
-        "• Aumentos no consumo de água (BRK) e energia (ENEL)\n"
-        "• Futuramente Relatórios de compensação para casas com sistema fotovoltaico\n\n"
-        "Para se cadastrar, envie uma mensagem no formato:\n"
-        "BR21-0000 / Seu Nome Completo / Sua Função\n\n"
-        "Exemplo: BR21-0270 / João Silva / Cooperador\n\n"
-        "Este serviço é destinado a Cooperadores, Encarregados de Manutenção, Responsáveis pela Escrita e demais irmãos do ministério.\n\n"
-        "Deus o abençoe!"
+        "🕊️ *A Santa Paz de Deus!*\n\n"
+        "📢 *Bem-vindo ao sistema de alertas automáticos da CCB ADM Mauá!*\n\n"
+        "⚙️ Este serviço está em *fase de desenvolvimento* e funcionará de forma gratuita, auxiliando na gestão das Casas de Oração.\n\n"
+        "🔔 *Você receberá alertas sobre:*\n"
+        "• 💧 Consumo excessivo de água (BRK)\n"
+        "• ⚡ Consumo fora do padrão de energia (ENEL)\n"
+        "• ☀️ Relatórios mensais de compensação (para casas com sistema fotovoltaico)\n\n"
+        "📝 *Como se cadastrar?*\n"
+        "Envie a seguinte mensagem (sem acento):\n"
+        "`BR21-0000 / Seu Nome Completo / Sua Função`\n\n"
+        "📌 *Exemplo:*\n"
+        "`BR21-0270 / João Silva / Cooperador`\n\n"
+        "👥 Destinado a:\n"
+        "✅ Cooperadores\n"
+        "✅ Encarregados de Manutenção\n"
+        "✅ Responsáveis pela Escrita\n"
+        "✅ E demais irmãos do ministério\n\n"
+        "_Deus te abençoe!_ 🙏",
+        parse_mode='Markdown'
     )
 
 async def cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -36,11 +44,12 @@ async def cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
     salvar_cadastro(texto, update.effective_user.id, update.effective_user.username)
     
     await update.message.reply_text(
-        f"A Santa Paz de Deus!\n\n"
-        f"Cadastro recebido com sucesso:\n{texto}\n\n"
-        f"Você está registrado para receber alertas de consumo da sua Casa de Oração.\n\n"
-        f"Fase em Desenvolvimento!\n\n"
-        f"Deus o abençoe!"
+        f"🕊️ *A Santa Paz de Deus!*\n\n"
+        f"✅ *Cadastro recebido com sucesso:*\n`{texto}`\n\n"
+        f"🗂️ Estamos em *fase de cadastro* dos irmãos responsáveis pelo acompanhamento.\n"
+        f"📢 Assim que esta fase for concluída, os *alertas automáticos de consumo* começarão a ser enviados.\n\n"
+        f"_Deus te abençoe!_ 🙌",
+        parse_mode='Markdown'
     )
 
 async def processar_cadastro_simples(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -53,11 +62,12 @@ async def processar_cadastro_simples(update: Update, context: ContextTypes.DEFAU
         salvar_cadastro(texto, update.effective_user.id, update.effective_user.username)
         
         await update.message.reply_text(
-            f"A Santa Paz de Deus!\n\n"
-            f"Cadastro recebido com sucesso:\n{texto}\n\n"
-            f"Você está registrado para receber alertas de consumo da casa de oração.\n\n"
-            f"Fase em Desenvolvimento!\n\n"
-            f"Deus o abençoe!"
+            f"🕊️ *A Santa Paz de Deus!*\n\n"
+            f"✅ *Cadastro recebido com sucesso:*\n`{texto}`\n\n"
+            f"🗂️ Estamos em *fase de cadastro* dos irmãos responsáveis pelo acompanhamento.\n"
+            f"📢 Assim que esta fase for concluída, os *alertas automáticos de consumo* começarão a ser enviados.\n\n"
+            f"_Deus te abençoe!_ 🙌",
+            parse_mode='Markdown'
         )
     else:
         # Se não parece um cadastro, envia a mensagem de boas-vindas
@@ -124,3 +134,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
