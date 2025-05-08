@@ -609,7 +609,7 @@ def main():
     
     # Iniciar o bot com polling
     print("Bot iniciado!")
-    application.run_polling()
+    application.run_polling(drop_pending_updates=True)
 
 if __name__ == '__main__':
     main()  
