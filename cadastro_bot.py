@@ -14,16 +14,12 @@ async def cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"Cadastro recebido: {texto}\n\nDeus abençoe!")
 
 def main():
-    application = Application.builder().token(TOKEN).build()
-
+    application = Application.builder().token("5976018694:AAGq9eE70UTwbj-hP_kVfpXJVVJ1PxW7Hhg").build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("cadastro", cadastro))
-
-    application.run_webhook(
-        listen="0.0.0.0",
-        port=10000,
-        webhook_url="https://ccb-alerta-bot.onrender.com/"
-    )
+    
+    # Usar polling em vez de webhook
+    application.run_polling()
 
 if __name__ == '__main__':
     main()
