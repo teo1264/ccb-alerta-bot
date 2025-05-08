@@ -39,7 +39,7 @@ async def cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"A Santa Paz de Deus!\n\n"
         f"Cadastro recebido com sucesso:\n{texto}\n\n"
         f"Você está registrado para receber alertas de consumo da sua Casa de Oração.\n\n"
-        f"Fase em Desenvolvimento!"
+        f"Fase em Desenvolvimento!\n\n"
         f"Deus o abençoe!"
     )
 
@@ -56,7 +56,7 @@ async def processar_cadastro_simples(update: Update, context: ContextTypes.DEFAU
             f"A Santa Paz de Deus!\n\n"
             f"Cadastro recebido com sucesso:\n{texto}\n\n"
             f"Você está registrado para receber alertas de consumo da casa de oração.\n\n"
-            f"Fase em Desenvolvimento!"
+            f"Fase em Desenvolvimento!\n\n"
             f"Deus o abençoe!"
         )
     else:
