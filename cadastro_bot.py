@@ -10,7 +10,7 @@ TOKEN = "7773179413:AAHqJp-NBPPs6YrSV1kB5-q4vkV3tjDFyy4"
 EXCEL_FILE = "responsaveis_casas.xlsx"
 
 # Coloque aqui o seu ID do Telegram e de outros administradores
-ADMIN_IDS = [5876346562]  # Substitua pelos IDs reais dos administradores
+ADMIN_IDS = [6661599889]  # Substitua pelos IDs reais dos administradores
 
 async def mensagem_boas_vindas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Responde a qualquer mensagem com uma saudação e instruções"""
@@ -188,6 +188,10 @@ async def processar_cadastro_simples(update: Update, context: ContextTypes.DEFAU
     """Processa qualquer mensagem como um possível cadastro"""
     texto = update.message.text.strip()
     
+    # Mostrar ID do usuário para ajudar na configuração
+    user_id = update.effective_user.id
+    print(f"Mensagem recebida do usuário ID: {user_id}, Username: @{update.effective_user.username}")
+    
     # Verificar se parece com um formato de cadastro
     if verificar_formato_cadastro(texto):
         # Confirmar cadastro com botões
@@ -288,8 +292,7 @@ async def processar_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         # Limpar dados do contexto
         if 'cadastro_pendente' in context.user_data:
             del context.user_data['cadastro_pendente']
-
-async def exportar_planilha(update: Update, context: ContextTypes.DEFAULT_TYPE):
+ async def exportar_planilha(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Envia a planilha de cadastros como um arquivo (apenas para administradores)"""
     # Verificar se o usuário é administrador
     if update.effective_user.id not in ADMIN_IDS:
@@ -477,6 +480,8 @@ async def processar_callback_admin(update: Update, context: ContextTypes.DEFAULT
 # Comando para adicionar um administrador (apenas para administradores)
 async def adicionar_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Adiciona um novo administrador (apenas para administradores)"""
+    global ADMIN_IDS  # Declaração global deve vir primeiro
+    
     # Verificar se o usuário é administrador
     if update.effective_user.id not in ADMIN_IDS:
         await update.message.reply_text(
@@ -517,7 +522,6 @@ async def adicionar_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Adicionar ao arquivo de configuração
     try:
         # Cria uma cópia da lista global para modificação
-        global ADMIN_IDS
         admin_ids_atualizados = ADMIN_IDS.copy()
         admin_ids_atualizados.append(novo_admin_id)
         
@@ -542,6 +546,23 @@ async def adicionar_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "_Deus te abençoe!_ 🙏",
             parse_mode='Markdown'
         )
+
+# Comando para mostrar seu próprio ID
+async def mostrar_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Mostra o ID do usuário que enviou a mensagem"""
+    user_id = update.effective_user.id
+    username = update.effective_user.username or "Sem username"
+    first_name = update.effective_user.first_name or "Sem nome"
+    
+    await update.message.reply_text(
+        f"🕊️ *A Santa Paz de Deus!*\n\n"
+        f"📋 *Suas informações:*\n\n"
+        f"🆔 *Seu ID:* `{user_id}`\n"
+        f"👤 *Username:* @{username}\n"
+        f"📝 *Nome:* {first_name}\n\n"
+        f"_Guarde seu ID para configurar como administrador!_",
+        parse_mode='Markdown'
+    )
 
 # Função para carregar IDs de administradores de um arquivo
 def carregar_admin_ids():
@@ -570,6 +591,7 @@ def main():
     # Handlers para comandos básicos
     application.add_handler(CommandHandler("start", mensagem_boas_vindas))
     application.add_handler(CommandHandler("cadastro", cadastro))
+    application.add_handler(CommandHandler("meu_id", mostrar_id))
     
     # Handlers para comandos administrativos
     application.add_handler(CommandHandler("exportar", exportar_planilha))
@@ -581,12 +603,12 @@ def main():
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, processar_cadastro_simples))
     
     # Handlers para callbacks
-    application.add_handler(CallbackQueryHandler(processar_callback, pattern='^(confirmar|cancelar)$'))
-    application.add_handler(CallbackQueryHandler(processar_callback_admin, pattern='^(confirmar_limpar|cancelar_limpar)$'))
+    application.add_handler(CallbackQueryHandler(processar_callback, pattern='^(confirmar|cancelar)))
+    application.add_handler(CallbackQueryHandler(processar_callback_admin, pattern='^(confirmar_limpar|cancelar_limpar)))
     
     # Iniciar o bot com polling
     print("Bot iniciado!")
     application.run_polling()
 
 if __name__ == '__main__':
-    main()
+    main()           
