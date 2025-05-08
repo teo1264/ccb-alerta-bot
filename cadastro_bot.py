@@ -14,10 +14,9 @@ async def cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"Cadastro recebido: {texto}\n\nDeus abençoe!")
 
 def main():
-    application = Application.builder().token("5976018694:AAGq9eE70UTwbj-hP_kVfpXJVVJ1PxW7Hhg").build()
+    application = Application.builder().token(TOKEN).build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("cadastro", cadastro))
-    
     # Usar polling em vez de webhook
     application.run_polling()
 
