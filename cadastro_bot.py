@@ -1,4 +1,4 @@
-        from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 import os
 import pandas as pd
@@ -10,7 +10,7 @@ TOKEN = "7773179413:AAHqJp-NBPPs6YrSV1kB5-q4vkV3tjDFyy4"
 EXCEL_FILE = "responsaveis_casas.xlsx"
 
 # Coloque aqui o seu ID do Telegram e de outros administradores
-ADMIN_IDS = [5876346562]  # Substitua pelos IDs reais dos administradores
+ADMIN_IDS = [5876346562]  # ID ajustado conforme solicitado
 
 async def mensagem_boas_vindas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Responde a qualquer mensagem com uma saudação e instruções"""
@@ -122,7 +122,6 @@ def salvar_cadastro(texto, user_id, username):
     except Exception as e:
         print(f"Erro ao salvar cadastro: {e}")
         return False, str(e)
-
 async def cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Processa um cadastro enviado com /cadastro"""
     texto = update.message.text.replace('/cadastro', '').strip()
@@ -476,7 +475,6 @@ async def processar_callback_admin(update: Update, context: ContextTypes.DEFAULT
             "_Deus te abençoe!_ 🙏",
             parse_mode='Markdown'
         )
-
 # Comando para adicionar um administrador (apenas para administradores)
 async def adicionar_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Adiciona um novo administrador (apenas para administradores)"""
@@ -603,12 +601,14 @@ def main():
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, processar_cadastro_simples))
     
     # Handlers para callbacks
-    application.add_handler(CallbackQueryHandler(processar_callback, pattern='^(confirmar|cancelar)))
-    application.add_handler(CallbackQueryHandler(processar_callback_admin, pattern='^(confirmar_limpar|cancelar_limpar)))
+    application.add_handler(CallbackQueryHandler(processar_callback, pattern='^(confirmar|cancelar)$'))
+    application.add_handler(CallbackQueryHandler(processar_callback_admin, pattern='^(confirmar_limpar|cancelar_limpar)$'))
     
     # Iniciar o bot com polling
     print("Bot iniciado!")
     application.run_polling()
 
 if __name__ == '__main__':
-    main()            
+    main()        
+            
+                
