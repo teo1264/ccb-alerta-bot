@@ -9,6 +9,9 @@ import pytz
 TOKEN = "7773179413:AAHqJp-NBPPs6YrSV1kB5-q4vkV3tjDFyy4"
 EXCEL_FILE = "responsaveis_casas.xlsx"
 
+# Coloque aqui o seu ID do Telegram e de outros administradores
+ADMIN_IDS = [5876346562]  # Substitua pelos IDs reais dos administradores
+
 async def mensagem_boas_vindas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Responde a qualquer mensagem com uma saudação e instruções"""
     await update.message.reply_text(
@@ -286,9 +289,48 @@ async def processar_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if 'cadastro_pendente' in context.user_data:
             del context.user_data['cadastro_pendente']
 
-# Comando para listar todos os cadastros (apenas para administradores)
-ADMIN_IDS = [123456789]  # Substitua pelo seu ID do Telegram
+async def exportar_planilha(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Envia a planilha de cadastros como um arquivo (apenas para administradores)"""
+    # Verificar se o usuário é administrador
+    if update.effective_user.id not in ADMIN_IDS:
+        await update.message.reply_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            "⚠️ *Acesso Negado*\n\n"
+            "Você não tem permissão para acessar esta função.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        return
+    
+    try:
+        if not os.path.exists(EXCEL_FILE):
+            await update.message.reply_text(
+                "🕊️ *A Santa Paz de Deus!*\n\n"
+                "❌ Nenhum arquivo de cadastro encontrado.\n\n"
+                "_Deus te abençoe!_ 🙏",
+                parse_mode='Markdown'
+            )
+            return
+            
+        # Enviar o arquivo
+        await update.message.reply_document(
+            document=open(EXCEL_FILE, 'rb'),
+            filename=EXCEL_FILE,
+            caption="🕊️ *A Santa Paz de Deus!*\n\nAqui está o arquivo com todos os cadastros de responsáveis.\n\n_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        
+        print(f"Planilha enviada para o administrador: {update.effective_user.id} - {update.effective_user.username}")
+        
+    except Exception as e:
+        await update.message.reply_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            f"❌ Erro ao enviar planilha: {str(e)}\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
 
+# Comando para listar todos os cadastros (apenas para administradores)
 async def listar_cadastros(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Lista todos os cadastros (apenas para administradores)"""
     # Verificar se o usuário é administrador
@@ -304,13 +346,23 @@ async def listar_cadastros(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         if not os.path.exists(EXCEL_FILE):
-            await update.message.reply_text("Nenhum cadastro encontrado.")
+            await update.message.reply_text(
+                "🕊️ *A Santa Paz de Deus!*\n\n"
+                "❌ Nenhum cadastro encontrado.\n\n"
+                "_Deus te abençoe!_ 🙏",
+                parse_mode='Markdown'
+            )
             return
             
         df = pd.read_excel(EXCEL_FILE)
         
         if df.empty:
-            await update.message.reply_text("Nenhum cadastro encontrado.")
+            await update.message.reply_text(
+                "🕊️ *A Santa Paz de Deus!*\n\n"
+                "❌ Nenhum cadastro encontrado.\n\n"
+                "_Deus te abençoe!_ 🙏",
+                parse_mode='Markdown'
+            )
             return
         
         # Formatar mensagem com os cadastros
@@ -332,7 +384,12 @@ async def listar_cadastros(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(mensagem, parse_mode='Markdown')
             
     except Exception as e:
-        await update.message.reply_text(f"Erro ao listar cadastros: {str(e)}")
+        await update.message.reply_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            f"❌ Erro ao listar cadastros: {str(e)}\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
 
 # Comando para limpar todos os cadastros (apenas para administradores)
 async def limpar_cadastros(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -402,7 +459,10 @@ async def processar_callback_admin(update: Update, context: ContextTypes.DEFAULT
                 )
         except Exception as e:
             await query.edit_message_text(
-                f"Erro ao limpar cadastros: {str(e)}"
+                "🕊️ *A Santa Paz de Deus!*\n\n"
+                f"❌ Erro ao limpar cadastros: {str(e)}\n\n"
+                "_Deus te abençoe!_ 🙏",
+                parse_mode='Markdown'
             )
     
     elif query.data == "cancelar_limpar":
@@ -414,14 +474,108 @@ async def processar_callback_admin(update: Update, context: ContextTypes.DEFAULT
             parse_mode='Markdown'
         )
 
+# Comando para adicionar um administrador (apenas para administradores)
+async def adicionar_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Adiciona um novo administrador (apenas para administradores)"""
+    # Verificar se o usuário é administrador
+    if update.effective_user.id not in ADMIN_IDS:
+        await update.message.reply_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            "⚠️ *Acesso Negado*\n\n"
+            "Você não tem permissão para acessar esta função.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        return
+    
+    # Verificar se há argumentos
+    args = context.args
+    if not args or not args[0].isdigit():
+        await update.message.reply_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            "❌ *Formato inválido!*\n\n"
+            "Use: `/admin_add ID_DO_USUARIO`\n"
+            "Exemplo: `/admin_add 123456789`\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        return
+    
+    # Obter ID do novo administrador
+    novo_admin_id = int(args[0])
+    
+    # Verificar se já é administrador
+    if novo_admin_id in ADMIN_IDS:
+        await update.message.reply_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            "ℹ️ Este usuário já é um administrador.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        return
+    
+    # Adicionar ao arquivo de configuração
+    try:
+        # Cria uma cópia da lista global para modificação
+        global ADMIN_IDS
+        admin_ids_atualizados = ADMIN_IDS.copy()
+        admin_ids_atualizados.append(novo_admin_id)
+        
+        # Atualiza a lista global
+        ADMIN_IDS = admin_ids_atualizados
+        
+        # Salvar em um arquivo para persistência (opcional)
+        with open('admin_ids.txt', 'w') as f:
+            for admin_id in ADMIN_IDS:
+                f.write(f"{admin_id}\n")
+        
+        await update.message.reply_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            f"✅ Administrador adicionado com sucesso: `{novo_admin_id}`\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+    except Exception as e:
+        await update.message.reply_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            f"❌ Erro ao adicionar administrador: {str(e)}\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+
+# Função para carregar IDs de administradores de um arquivo
+def carregar_admin_ids():
+    """Carrega IDs de administradores de um arquivo"""
+    global ADMIN_IDS
+    try:
+        if os.path.exists('admin_ids.txt'):
+            with open('admin_ids.txt', 'r') as f:
+                ids = [int(line.strip()) for line in f if line.strip().isdigit()]
+                if ids:
+                    ADMIN_IDS = ids
+                    print(f"IDs de administradores carregados: {ADMIN_IDS}")
+    except Exception as e:
+        print(f"Erro ao carregar IDs de administradores: {e}")
+
 def main():
+    # Carregar IDs de administradores
+    carregar_admin_ids()
+    
+    # Inicializar planilha
+    inicializar_planilha()
+    
+    # Criar aplicação
     application = Application.builder().token(TOKEN).build()
     
-    # Handlers para comandos
+    # Handlers para comandos básicos
     application.add_handler(CommandHandler("start", mensagem_boas_vindas))
     application.add_handler(CommandHandler("cadastro", cadastro))
+    
+    # Handlers para comandos administrativos
+    application.add_handler(CommandHandler("exportar", exportar_planilha))
     application.add_handler(CommandHandler("listar", listar_cadastros))
     application.add_handler(CommandHandler("limpar", limpar_cadastros))
+    application.add_handler(CommandHandler("admin_add", adicionar_admin))
     
     # Handler para mensagens de texto
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, processar_cadastro_simples))
@@ -430,10 +584,8 @@ def main():
     application.add_handler(CallbackQueryHandler(processar_callback, pattern='^(confirmar|cancelar)$'))
     application.add_handler(CallbackQueryHandler(processar_callback_admin, pattern='^(confirmar_limpar|cancelar_limpar)$'))
     
-    # Inicializar planilha
-    inicializar_planilha()
-    
-    # Usar polling
+    # Iniciar o bot com polling
+    print("Bot iniciado!")
     application.run_polling()
 
 if __name__ == '__main__':
