@@ -62,7 +62,7 @@ async def processar_mensagem(update: Update, context: ContextTypes.DEFAULT_TYPE)
     print(f"Mensagem recebida do usuário ID: {user_id}, Username: @{update.effective_user.username}")
     
     # Verificar se é um clique em botão do menu
-    if texto == "🖋️ Cadastrar Responsável":
+    if texto == "📝 CADASTRAR RESPONSÁVEL 📝" or texto == "🖋️ Cadastrar Responsável":
         # Inicia o fluxo de cadastro como se o usuário tivesse usado o comando /cadastrar
         return await iniciar_cadastro_etapas(update, context)
     
@@ -91,7 +91,7 @@ async def processar_mensagem(update: Update, context: ContextTypes.DEFAULT_TYPE)
             "🕊️ *A Santa Paz de Deus!*\n\n"
             "📝 *Nova forma de cadastro!*\n\n"
             "Temos um processo mais simples para cadastro.\n\n"
-            "Por favor, clique no botão *🖋️ Cadastrar Responsável* ou digite */cadastrar* para iniciar o processo passo a passo.\n\n"
+            "Por favor, clique no botão *📝 CADASTRAR RESPONSÁVEL 📝* ou digite */cadastrar* para iniciar o processo passo a passo.\n\n"
             "_Deus te abençoe!_ 🙏",
             parse_mode='Markdown'
         )
