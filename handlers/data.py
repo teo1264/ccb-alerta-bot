@@ -48,10 +48,10 @@ IGREJAS = [
 # Lista de funções disponíveis - Encarregado da Manutenção como primeira opção
 FUNCOES = [
     "Encarregado da Manutenção",
-    "Ancião",
-    "Diácono",
-    "Cooperador",
     "Auxiliar da Escrita",
+    "Cooperador",
+    "Diácono",
+    "Ancião",
     "Outro"
 ]
 
