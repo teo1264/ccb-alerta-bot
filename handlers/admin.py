@@ -440,6 +440,240 @@ async def adicionar_admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE
             "_Deus te abençoe!_ 🙏",
             parse_mode='Markdown'
         )
+async def editar_buscar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Busca cadastros para edição (apenas para administradores)
+    Uso: /editar_buscar TERMO_BUSCA
+    Exemplo: /editar_buscar João
+    """
+    # Verificar se o usuário é administrador
+    if not verificar_admin(update.effective_user.id):
+        await update.message.reply_text(
+            "A Santa Paz de Deus!\n\n"
+            "⚠️ *Acesso Negado*\n\n"
+            "Você não tem permissão para acessar esta função.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        return
+    
+    # Verificar argumentos
+    args = context.args
+    if not args:
+        await update.message.reply_text(
+            "A Santa Paz de Deus!\n\n"
+            "❌ *Formato inválido!*\n\n"
+            "Use: `/editar_buscar TERMO_BUSCA`\n"
+            "Exemplo: `/editar_buscar João` ou `/editar_buscar BR21-0001`\n\n"
+            "Você pode buscar por partes do nome, código ou função.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        return
+    
+    termo_busca = ' '.join(args).lower()
+    
+    try:
+        # Carregar planilha
+        if not os.path.exists(EXCEL_FILE):
+            await update.message.reply_text(
+                "A Santa Paz de Deus!\n\n"
+                "❌ Nenhum arquivo de cadastro encontrado.\n\n"
+                "_Deus te abençoe!_ 🙏",
+                parse_mode='Markdown'
+            )
+            return
+        
+        df = pd.read_excel(EXCEL_FILE)
+        
+        if df.empty:
+            await update.message.reply_text(
+                "A Santa Paz de Deus!\n\n"
+                "❌ A planilha está vazia, sem cadastros para buscar.\n\n"
+                "_Deus te abençoe!_ 🙏",
+                parse_mode='Markdown'
+            )
+            return
+        
+        # Buscar em todas as colunas relevantes
+        resultados = df[
+            df['Codigo_Casa'].astype(str).str.lower().str.contains(termo_busca) |
+            df['Nome'].astype(str).str.lower().str.contains(termo_busca) |
+            df['Funcao'].astype(str).str.lower().str.contains(termo_busca)
+        ]
+        
+        if len(resultados) == 0:
+            await update.message.reply_text(
+                "A Santa Paz de Deus!\n\n"
+                f"❌ Nenhum cadastro encontrado com o termo '{termo_busca}'.\n\n"
+                "_Deus te abençoe!_ 🙏",
+                parse_mode='Markdown'
+            )
+            return
+        
+        # Montar mensagem com os resultados
+        mensagem = (
+            "A Santa Paz de Deus!\n\n"
+            f"✅ *{len(resultados)} cadastros encontrados:*\n\n"
+        )
+        
+        for i, (idx, row) in enumerate(resultados.iterrows(), 1):
+            mensagem += (
+                f"*{i}. {row['Codigo_Casa']} - {row['Nome']}*\n"
+                f"   Função: {row['Funcao']}\n"
+                f"   Última atualização: {row['Ultima_Atualizacao']}\n\n"
+            )
+        
+        mensagem += (
+            "*Para editar um cadastro, use o comando:*\n"
+            "`/editar CODIGO_CASA CAMPO NOVO_VALOR`\n\n"
+            "Exemplo: `/editar BR21-0001 Nome \"Novo Nome\"`\n\n"
+            "Campos disponíveis: `Codigo_Casa`, `Nome`, `Funcao`\n\n"
+            "_Deus te abençoe!_ 🙏"
+        )
+        
+        # Enviar resultados
+        await update.message.reply_text(mensagem, parse_mode='Markdown')
+        
+    except Exception as e:
+        await update.message.reply_text(
+            "A Santa Paz de Deus!\n\n"
+            f"❌ Erro ao buscar cadastros: {str(e)}\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+
+async def editar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Edita um cadastro existente (apenas para administradores)
+    Uso: /editar CODIGO_CASA CAMPO NOVO_VALOR
+    Exemplo: /editar BR21-0001 Nome "João da Silva"
+    """
+    # Verificar se o usuário é administrador
+    if not verificar_admin(update.effective_user.id):
+        await update.message.reply_text(
+            "A Santa Paz de Deus!\n\n"
+            "⚠️ *Acesso Negado*\n\n"
+            "Você não tem permissão para acessar esta função.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        return
+    
+    # Verificar argumentos
+    args = context.args
+    if len(args) < 3:
+        await update.message.reply_text(
+            "A Santa Paz de Deus!\n\n"
+            "❌ *Formato inválido!*\n\n"
+            "Use: `/editar CODIGO_CASA CAMPO NOVO_VALOR`\n"
+            "Exemplo: `/editar BR21-0001 Nome \"João da Silva\"`\n\n"
+            "Campos disponíveis: `Codigo_Casa`, `Nome`, `Funcao`\n\n"
+            "Para encontrar um cadastro, use o comando `/editar_buscar`.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        return
+    
+    codigo = args[0]
+    campo = args[1]
+    valor = ' '.join(args[2:])
+    
+    # Remover aspas que possam estar em volta do valor
+    valor = valor.strip('"\'')
+    
+    try:
+        # Carregar planilha
+        if not os.path.exists(EXCEL_FILE):
+            await update.message.reply_text(
+                "A Santa Paz de Deus!\n\n"
+                "❌ Nenhum arquivo de cadastro encontrado.\n\n"
+                "_Deus te abençoe!_ 🙏",
+                parse_mode='Markdown'
+            )
+            return
+        
+        df = pd.read_excel(EXCEL_FILE)
+        
+        # Verificar se o código existe
+        filtro = df['Codigo_Casa'] == codigo
+        if not filtro.any():
+            await update.message.reply_text(
+                "A Santa Paz de Deus!\n\n"
+                f"❌ Código `{codigo}` não encontrado na planilha.\n\n"
+                "Use o comando `/editar_buscar` para encontrar o código correto.\n\n"
+                "_Deus te abençoe!_ 🙏",
+                parse_mode='Markdown'
+            )
+            return
+        
+        # Verificar se o campo existe
+        campos_permitidos = ['Codigo_Casa', 'Nome', 'Funcao']
+        if campo not in campos_permitidos:
+            await update.message.reply_text(
+                "A Santa Paz de Deus!\n\n"
+                f"❌ Campo `{campo}` não permitido para edição.\n"
+                f"Campos permitidos: `{', '.join(campos_permitidos)}`\n\n"
+                "_Deus te abençoe!_ 🙏",
+                parse_mode='Markdown'
+            )
+            return
+        
+        # Verificar se o campo existe na planilha
+        if campo not in df.columns:
+            await update.message.reply_text(
+                "A Santa Paz de Deus!\n\n"
+                f"❌ Campo `{campo}` não existe na planilha.\n"
+                f"Campos disponíveis: `{', '.join(campos_permitidos)}`\n\n"
+                "_Deus te abençoe!_ 🙏",
+                parse_mode='Markdown'
+            )
+            return
+        
+        # Valor antigo para mostrar na confirmação
+        valor_antigo = df.loc[filtro, campo].values[0]
+        
+        # Atualizar o valor
+        df.loc[filtro, campo] = valor
+        
+        # Atualizar data de modificação
+        fuso_horario = pytz.timezone('America/Sao_Paulo')
+        agora = datetime.now(fuso_horario)
+        data_formatada = agora.strftime("%d/%m/%Y %H:%M:%S")
+        df.loc[filtro, 'Ultima_Atualizacao'] = data_formatada
+        
+        # Salvar planilha
+        df.to_excel(EXCEL_FILE, index=False)
+        
+        # Obter nome da igreja para a mensagem de confirmação
+        nome_igreja = "Desconhecida"
+        try:
+            from handlers.data import obter_igreja_por_codigo
+            igreja_info = obter_igreja_por_codigo(codigo)
+            if igreja_info:
+                nome_igreja = igreja_info['nome']
+        except:
+            pass
+        
+        await update.message.reply_text(
+            "A Santa Paz de Deus!\n\n"
+            "✅ *Cadastro atualizado com sucesso!*\n\n"
+            f"📄 *Código:* `{codigo}`\n"
+            f"🏢 *Casa:* `{nome_igreja}`\n"
+            f"📝 *Campo atualizado:* `{campo}`\n"
+            f"📄 *Valor antigo:* `{valor_antigo}`\n"
+            f"📄 *Novo valor:* `{valor}`\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        
+    except Exception as e:
+        await update.message.reply_text(
+            "A Santa Paz de Deus!\n\n"
+            f"❌ Erro ao atualizar cadastro: {str(e)}\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
 
 def registrar_handlers_admin(application):
     """Registra handlers para funções administrativas"""
@@ -447,6 +681,8 @@ def registrar_handlers_admin(application):
     application.add_handler(CommandHandler("listar", listar_cadastros))
     application.add_handler(CommandHandler("limpar", limpar_cadastros))
     application.add_handler(CommandHandler("admin_add", adicionar_admin_cmd))
+    application.add_handler(CommandHandler("editar_buscar", editar_buscar))  # Nova linha
+    application.add_handler(CommandHandler("editar", editar_cadastro))  # Nova linha
     
     # Handler para os callbacks de confirmação nas funções administrativas
     application.add_handler(CallbackQueryHandler(
