@@ -87,7 +87,7 @@ async def mostrar_menu_igrejas(update: Update, context: ContextTypes.DEFAULT_TYP
     
     # Criar ou editar mensagem dependendo do contexto
     texto_mensagem = (
-        "🕊️ *A Santa Paz de Deus!*\n\n"
+        " *A Santa Paz de Deus!*\n\n"
         "Vamos iniciar o cadastro da Casa de Oração.\n\n"
         "Por favor, selecione a Casa de Oração:\n\n"
         f"📄 *Página {pagina_atual + 1}/{len(igrejas_paginadas)}*"
@@ -123,7 +123,7 @@ async def processar_selecao_igreja(update: Update, context: ContextTypes.DEFAULT
             del context.user_data['cadastro_temp']
         
         await query.edit_message_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
+            " *A Santa Paz de Deus!*\n\n"
             "❌ *Cadastro cancelado!*\n\n"
             "Você pode iniciar novamente quando quiser usando /cadastrar.\n\n"
             "_Deus te abençoe!_ 🙏",
@@ -157,7 +157,7 @@ async def processar_selecao_igreja(update: Update, context: ContextTypes.DEFAULT
             
             # Continuar para a próxima etapa (nome do responsável)
             await query.edit_message_text(
-                f"🕊️ *A Santa Paz de Deus!*\n\n"
+                f" *A Santa Paz de Deus!*\n\n"
                 f"✅ Casa de Oração selecionada: *{igreja['codigo']} - {igreja['nome']}*\n\n"
                 f"Agora, digite o nome do responsável:",
                 parse_mode='Markdown'
@@ -231,7 +231,7 @@ async def mostrar_menu_funcoes(update: Update, context: ContextTypes.DEFAULT_TYP
     
     # Criar ou editar mensagem dependendo do contexto
     texto_mensagem = (
-        "🕊️ *A Santa Paz de Deus!*\n\n"
+        " *A Santa Paz de Deus!*\n\n"
         f"✅ Nome registrado: *{context.user_data['cadastro_temp']['nome']}*\n\n"
         "Agora, selecione a função do responsável:\n\n"
         f"📄 *Página {pagina_atual + 1}/{len(funcoes_paginadas)}*"
@@ -267,7 +267,7 @@ async def processar_selecao_funcao(update: Update, context: ContextTypes.DEFAULT
             del context.user_data['cadastro_temp']
         
         await query.edit_message_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
+            " *A Santa Paz de Deus!*\n\n"
             "❌ *Cadastro cancelado!*\n\n"
             "Você pode iniciar novamente quando quiser usando /cadastrar.\n\n"
             "_Deus te abençoe!_ 🙏",
@@ -290,7 +290,7 @@ async def processar_selecao_funcao(update: Update, context: ContextTypes.DEFAULT
     if data == "funcao_outra":
         # Solicitar entrada manual da função
         await query.edit_message_text(
-            f"🕊️ *A Santa Paz de Deus!*\n\n"
+            f" *A Santa Paz de Deus!*\n\n"
             f"Por favor, digite a função do responsável (Exemplo: Cooperador, Diácono, etc.):",
             parse_mode='Markdown'
         )
@@ -319,7 +319,7 @@ async def processar_selecao_funcao(update: Update, context: ContextTypes.DEFAULT
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await query.edit_message_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
+            " *A Santa Paz de Deus!*\n\n"
             "📝 *Confirme os dados do cadastro:*\n\n"
             f"📍 *Código:* `{codigo}`\n"
             f"🏢 *Casa:* `{nome_igreja}`\n"
@@ -366,7 +366,7 @@ async def receber_funcao(update: Update, context: ContextTypes.DEFAULT_TYPE):
     nome_igreja = context.user_data['cadastro_temp']['nome_igreja']
     
     await update.message.reply_text(
-        "🕊️ *A Santa Paz de Deus!*\n\n"
+        " *A Santa Paz de Deus!*\n\n"
         "📝 *Confirme os dados do cadastro:*\n\n"
         f"📍 *Código:* `{codigo}`\n"
         f"🏢 *Casa:* `{nome_igreja}`\n"
@@ -392,7 +392,7 @@ async def confirmar_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
             del context.user_data['cadastro_temp']
         
         await query.edit_message_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
+            " *A Santa Paz de Deus!*\n\n"
             "❌ *Cadastro cancelado!*\n\n"
             "Você pode iniciar novamente quando quiser usando /cadastrar.\n\n"
             "_Deus te abençoe!_ 🙏",
@@ -409,7 +409,7 @@ async def confirmar_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Verificar se já existe cadastro exatamente igual
     if verificar_cadastro_existente(codigo, nome, funcao):
         await query.edit_message_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
+            " *A Santa Paz de Deus!*\n\n"
             "⚠️ *Atenção!*\n\n"
             f"Já existe um cadastro para a Casa de Oração *{codigo}* com o nome *{nome}* e função *{funcao}*.\n\n"
             "Por favor, verifique os dados ou entre em contato com o administrador.\n\n"
@@ -428,7 +428,7 @@ async def confirmar_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if not sucesso:
         await query.edit_message_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
+            " *A Santa Paz de Deus!*\n\n"
             "❌ *Houve um problema ao processar seu cadastro!*\n\n"
             "Por favor, tente novamente mais tarde ou entre em contato com o administrador.\n\n"
             "_Deus te abençoe!_ 🙏",
@@ -441,7 +441,7 @@ async def confirmar_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Sucesso
     await query.edit_message_text(
-        f"🕊️ *A Santa Paz de Deus!*\n\n"
+        f" *A Santa Paz de Deus!*\n\n"
         f"✅ *Cadastro recebido com sucesso:*\n\n"
         f"📍 *Código:* `{codigo}`\n"
         f"🏢 *Casa:* `{nome_igreja}`\n"
@@ -467,7 +467,7 @@ async def cancelar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Verificar se é callback ou comando
     if hasattr(update, 'callback_query'):
         await update.callback_query.edit_message_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
+            " *A Santa Paz de Deus!*\n\n"
             "❌ *Cadastro cancelado!*\n\n"
             "Você pode iniciar novamente quando quiser usando /cadastrar.\n\n"
             "_Deus te abençoe!_ 🙏",
@@ -475,7 +475,7 @@ async def cancelar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     else:
         await update.message.reply_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
+            " *A Santa Paz de Deus!*\n\n"
             "❌ *Cadastro cancelado!*\n\n"
             "Você pode iniciar novamente quando quiser usando /cadastrar.\n\n"
             "_Deus te abençoe!_ 🙏",
@@ -486,7 +486,7 @@ async def cancelar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cadastro_comando(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Redireciona para o cadastro em etapas"""
     await update.message.reply_text(
-        "🕊️ *A Santa Paz de Deus!*\n\n"
+        " *A Santa Paz de Deus!*\n\n"
         "📝 *Nova forma de cadastro!*\n\n"
         "Agora utilizamos um processo mais simples, guiado passo a passo.\n\n"
         "Por favor, use o comando */cadastrar* para iniciar o cadastro.\n\n"
