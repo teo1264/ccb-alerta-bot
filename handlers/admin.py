@@ -29,7 +29,7 @@ async def exportar_planilha(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Verificar se o usuário é administrador
     if not verificar_admin(update.effective_user.id):
         await update.message.reply_text(
-            " *A Santa Paz de Deus!*\n\n"
+            "A Santa Paz de Deus!\n\n"
             "⚠️ *Acesso Negado*\n\n"
             "Você não tem permissão para acessar esta função.\n\n"
             "_Deus te abençoe!_ 🙏",
@@ -40,82 +40,141 @@ async def exportar_planilha(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if not os.path.exists(EXCEL_FILE):
             await update.message.reply_text(
-                " *A Santa Paz de Deus!*\n\n"
+                "A Santa Paz de Deus!\n\n"
                 "❌ Nenhum arquivo de cadastro encontrado.\n\n"
                 "_Deus te abençoe!_ 🙏",
                 parse_mode='Markdown'
             )
             return
         
-        # Antes de enviar, vamos verificar e recriar o arquivo se necessário
-        try:
-            # Ler dados do arquivo existente
-            df = pd.read_excel(EXCEL_FILE)
-            
-            # Verificar se há dados
-            if df.empty:
-                await update.message.reply_text(
-                    " *A Santa Paz de Deus!*\n\n"
-                    "❌ Planilha vazia, sem cadastros para exportar.\n\n"
-                    "_Deus te abençoe!_ 🙏",
-                    parse_mode='Markdown'
-                )
-                return
-            
-            # Criar arquivo temporário com formatação adequada
-            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-            temp_file = f"temp_{timestamp}.xlsx"
-            
-            # Salvar com formatação de colunas
-            with pd.ExcelWriter(temp_file, engine='openpyxl') as writer:
-                df.to_excel(writer, index=False)
-                
-                # Obter a planilha ativa
-                worksheet = writer.sheets['Sheet1']
-                
-                # Ajustar largura das colunas
-                worksheet.column_dimensions['A'].width = 15  # Codigo_Casa
-                worksheet.column_dimensions['B'].width = 30  # Nome
-                worksheet.column_dimensions['C'].width = 20  # Funcao
-                worksheet.column_dimensions['D'].width = 15  # User_ID
-                worksheet.column_dimensions['E'].width = 20  # Username
-                worksheet.column_dimensions['F'].width = 20  # Data_Cadastro
-                worksheet.column_dimensions['G'].width = 20  # Ultima_Atualizacao
-            
-            # Enviar o arquivo temporário
-            await update.message.reply_document(
-                document=open(temp_file, 'rb'),
-                filename="responsaveis_casas.xlsx",
-                caption=f"🕊️ *A Santa Paz de Deus!*\n\nAqui está o arquivo com {len(df)} cadastros de responsáveis.\n\n_Deus te abençoe!_ 🙏",
-                parse_mode='Markdown'
-            )
-            
-            # Remover arquivo temporário após envio
-            os.remove(temp_file)
-            
-        except Exception as e:
-            await update.message.reply_text(
-                f"❌ Erro ao processar planilha: {str(e)}\n\nTentando enviar arquivo original..."
-            )
-            
-            # Enviar o arquivo original como fallback
-            await update.message.reply_document(
-                document=open(EXCEL_FILE, 'rb'),
-                filename="responsaveis_casas.xlsx",
-                caption="🕊️ *A Santa Paz de Deus!*\n\nAqui está o arquivo com os cadastros de responsáveis.\n\n_Deus te abençoe!_ 🙏",
-                parse_mode='Markdown'
-            )
-        
-        print(f"Planilha enviada para o administrador: {update.effective_user.id} - {update.effective_user.username}")
-        
-    except Exception as e:
+        # Enviar um relatório de diagnóstico sobre o arquivo
         await update.message.reply_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
-            f"❌ Erro ao enviar planilha: {str(e)}\n\n"
+            "🔍 *Analisando arquivo de cadastros...*\n\n"
+            f"Arquivo: `{EXCEL_FILE}`\n"
+            "Por favor, aguarde enquanto preparamos os relatórios.",
+            parse_mode='Markdown'
+        )
+        
+        # Ler dados do arquivo existente
+        df = pd.read_excel(EXCEL_FILE)
+        
+        # Verificar se há dados
+        if df.empty:
+            await update.message.reply_text(
+                "A Santa Paz de Deus!\n\n"
+                "❌ Planilha vazia, sem cadastros para exportar.\n\n"
+                "_Deus te abençoe!_ 🙏",
+                parse_mode='Markdown'
+            )
+            return
+        
+        # Enviar informações de diagnóstico
+        info_text = (
+            "📊 *Informações da Planilha:*\n\n"
+            f"Total de registros: `{len(df)}`\n"
+            f"Colunas encontradas: `{', '.join(df.columns)}`\n\n"
+            "*Contagem de valores não nulos por coluna:*\n"
+        )
+        
+        for col in df.columns:
+            count = df[col].count()
+            info_text += f"- {col}: `{count}` valores\n"
+        
+        await update.message.reply_text(info_text, parse_mode='Markdown')
+        
+        # Criar diversos arquivos para teste
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        
+        # 1. Versão Excel normal
+        excel_file = f"export_{timestamp}.xlsx"
+        df.to_excel(excel_file, index=False)
+        
+        # 2. Versão CSV (mais confiável)
+        csv_file = f"export_{timestamp}.csv"
+        df.to_csv(csv_file, index=False)
+        
+        # 3. Versão Excel com formatação específica
+        formatted_excel = f"formatted_{timestamp}.xlsx"
+        with pd.ExcelWriter(formatted_excel, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False)
+            worksheet = writer.sheets['Sheet1']
+            for idx, col in enumerate(df.columns, 1):
+                # Converter a letra de coluna do Excel (A, B, C...)
+                letter = chr(64 + idx)
+                worksheet.column_dimensions[letter].width = 20
+        
+        # 4. Gerar um relatório em texto plano
+        txt_file = f"report_{timestamp}.txt"
+        with open(txt_file, 'w', encoding='utf-8') as f:
+            f.write("RELATÓRIO DE CADASTROS\n")
+            f.write("====================\n\n")
+            f.write(f"Data de geração: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n")
+            f.write(f"Total de registros: {len(df)}\n\n")
+            f.write("LISTA DE CADASTROS:\n\n")
+            
+            for idx, row in df.iterrows():
+                f.write(f"Registro #{idx+1}:\n")
+                for col in df.columns:
+                    f.write(f"  {col}: {row[col]}\n")
+                f.write("\n")
+        
+        # Enviar todos os arquivos
+        await update.message.reply_text(
+            "A Santa Paz de Deus!\n\n"
+            "📋 *Relatórios gerados!*\n\n"
+            "Estamos enviando os dados em diferentes formatos para análise. "
+            "Por favor, verifique qual formato exibe as informações corretamente.\n\n"
             "_Deus te abençoe!_ 🙏",
             parse_mode='Markdown'
         )
-
+        
+        # Enviar Excel normal
+        await update.message.reply_document(
+            document=open(excel_file, 'rb'),
+            filename="cadastros.xlsx",
+            caption="📊 Planilha Excel (versão padrão)"
+        )
+        
+        # Enviar CSV
+        await update.message.reply_document(
+            document=open(csv_file, 'rb'),
+            filename="cadastros.csv",
+            caption="📄 Arquivo CSV (pode ser aberto no Excel ou editor de texto)"
+        )
+        
+        # Enviar Excel formatado
+        await update.message.reply_document(
+            document=open(formatted_excel, 'rb'),
+            filename="cadastros_formatado.xlsx",
+            caption="📊 Planilha Excel (com formatação especial)"
+        )
+        
+        # Enviar relatório em texto
+        await update.message.reply_document(
+            document=open(txt_file, 'rb'),
+            filename="relatorio_cadastros.txt",
+            caption="📝 Relatório em texto plano"
+        )
+        
+        # Limpar arquivos temporários
+        try:
+            os.remove(excel_file)
+            os.remove(csv_file)
+            os.remove(formatted_excel)
+            os.remove(txt_file)
+        except:
+            pass
+        
+        print(f"Relatórios enviados para o administrador: {update.effective_user.id} - {update.effective_user.username}")
+        
+    except Exception as e:
+        await update.message.reply_text(
+            "A Santa Paz de Deus!\n\n"
+            f"❌ Erro ao gerar relatórios: {str(e)}\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        
 async def listar_cadastros(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Lista todos os cadastros (apenas para administradores)"""
     # Verificar se o usuário é administrador
