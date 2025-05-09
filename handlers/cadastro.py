@@ -15,7 +15,10 @@ from telegram.ext import (
 )
 
 from config import CODIGO, NOME, FUNCAO, CONFIRMAR
-from utils import salvar_cadastro, verificar_cadastro_existente
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils import salvar_cadastro, verificar_cadastro_existente, extrair_dados_cadastro
 from handlers.data import IGREJAS, FUNCOES, agrupar_igrejas, agrupar_funcoes, obter_igreja_por_codigo
 
 # Logger
