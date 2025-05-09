@@ -675,14 +675,115 @@ async def editar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown'
         )
 
+async def excluir_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Exclui um cadastro específico (apenas para administradores)
+    Uso: /excluir CODIGO_CASA NOME
+    Exemplo: /excluir BR21-0001 "João da Silva"
+    """
+    # Verificar se o usuário é administrador
+    if not verificar_admin(update.effective_user.id):
+        await update.message.reply_text(
+            "A Santa Paz de Deus!\n\n"
+            "⚠️ *Acesso Negado*\n\n"
+            "Você não tem permissão para acessar esta função.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        return
+    
+    # Verificar argumentos
+    args = context.args
+    if len(args) < 2:
+        await update.message.reply_text(
+            "A Santa Paz de Deus!\n\n"
+            "❌ *Formato inválido!*\n\n"
+            "Use: `/excluir CODIGO_CASA NOME`\n"
+            "Exemplo: `/excluir BR21-0001 \"João da Silva\"`\n\n"
+            "Para encontrar um cadastro, use o comando `/editar_buscar`.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        return
+    
+    codigo = args[0]
+    nome = ' '.join(args[1:])
+    
+    # Remover aspas que possam estar em volta do nome
+    nome = nome.strip('"\'')
+    
+    try:
+        # Carregar planilha
+        if not os.path.exists(EXCEL_FILE):
+            await update.message.reply_text(
+                "A Santa Paz de Deus!\n\n"
+                "❌ Nenhum arquivo de cadastro encontrado.\n\n"
+                "_Deus te abençoe!_ 🙏",
+                parse_mode='Markdown'
+            )
+            return
+        
+        df = pd.read_excel(EXCEL_FILE)
+        
+        # Verificar se o código existe
+        filtro = (df['Codigo_Casa'] == codigo) & (df['Nome'].str.lower() == nome.lower())
+        
+        if not filtro.any():
+            await update.message.reply_text(
+                "A Santa Paz de Deus!\n\n"
+                f"❌ Cadastro não encontrado para código `{codigo}` e nome `{nome}`.\n\n"
+                "Use o comando `/editar_buscar` para encontrar o cadastro correto.\n\n"
+                "_Deus te abençoe!_ 🙏",
+                parse_mode='Markdown'
+            )
+            return
+        
+        # Obter nome da igreja para a mensagem de confirmação
+        nome_igreja = "Desconhecida"
+        try:
+            from handlers.data import obter_igreja_por_codigo
+            igreja_info = obter_igreja_por_codigo(codigo)
+            if igreja_info:
+                nome_igreja = igreja_info['nome']
+        except:
+            pass
+        
+        # Fazer backup antes de modificar
+        fazer_backup_planilha()
+        
+        # Excluir a linha
+        df_atualizado = df[~filtro]
+        
+        # Salvar planilha
+        df_atualizado.to_excel(EXCEL_FILE, index=False)
+        
+        await update.message.reply_text(
+            "A Santa Paz de Deus!\n\n"
+            "✅ *Cadastro excluído com sucesso!*\n\n"
+            f"📄 *Código:* `{codigo}`\n"
+            f"🏢 *Casa:* `{nome_igreja}`\n"
+            f"👤 *Nome:* `{nome}`\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        
+    except Exception as e:
+        await update.message.reply_text(
+            "A Santa Paz de Deus!\n\n"
+            f"❌ Erro ao excluir cadastro: {str(e)}\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+
 def registrar_handlers_admin(application):
     """Registra handlers para funções administrativas"""
     application.add_handler(CommandHandler("exportar", exportar_planilha))
     application.add_handler(CommandHandler("listar", listar_cadastros))
     application.add_handler(CommandHandler("limpar", limpar_cadastros))
     application.add_handler(CommandHandler("admin_add", adicionar_admin_cmd))
-    application.add_handler(CommandHandler("editar_buscar", editar_buscar))  # Nova linha
-    application.add_handler(CommandHandler("editar", editar_cadastro))  # Nova linha
+    application.add_handler(CommandHandler("editar_buscar", editar_buscar))
+    application.add_handler(CommandHandler("editar", editar_cadastro))
+    application.add_handler(CommandHandler("excluir", excluir_cadastro))  # Nova linha
     
     # Handler para os callbacks de confirmação nas funções administrativas
     application.add_handler(CallbackQueryHandler(
