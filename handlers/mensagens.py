@@ -33,19 +33,18 @@ EXPRESSOES_LOUVOR = [
     r'\bdeus é bom\b',
     r'\bdeus é fiel\b'
 ]
-
-# Respostas inspiradoras com emojis
+# Respostas inspiradoras com emojis apropriados
 RESPOSTAS_LOUVOR = [
-    "🕊️ Glória a Deus! ✨",
+    "Glória a Deus!",
     "🙌 Amém, irmão(ã)! Deus é bom o tempo todo!",
-    "✝️ A Paz de Deus! Que o Senhor te abençoe.",
+    "A Paz de Deus! Que o Senhor te abençoe.",
     "🙏 Aleluia! Louvado seja o Senhor!",
-    "🕊️ A Santa Paz! Deus seja louvado.",
-    "✨ Glória a Deus nas alturas!",
-    "🌿 Paz seja contigo! O Senhor te guarde.",
-    "🌟 Deus é fiel! Que Ele te abençoe sempre.",
+    "A Santa Paz! Deus seja louvado.",
+    "Glória a Deus nas alturas!",
+    "A Paz de Deus! O Senhor te guarde.",
+    "🙏 Deus é fiel! Que Ele te abençoe sempre.",
     "🙏 Amém! Que a graça do Senhor esteja contigo.",
-    "🕊️ Aleluia! A paz do Senhor Jesus."
+    "A Paz de Deus!"
 ]
 
 async def processar_mensagem(update: Update, context: ContextTypes.DEFAULT_TYPE):
