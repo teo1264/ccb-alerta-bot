@@ -19,6 +19,7 @@ EXPRESSOES_LOUVOR = [
     r'\bamem\b',
     r'\bamén\b',
     r'\bamen\b',
+    r'\bamém\b',
     r'\bglória\b', 
     r'\bgloria\b',
     r'\bglória a deus\b',
@@ -87,7 +88,7 @@ async def processar_mensagem(update: Update, context: ContextTypes.DEFAULT_TYPE)
     # Se parece com uma tentativa de cadastro no formato antigo
     if "/" in texto and ("BR" in texto.upper() or "-" in texto):
         await update.message.reply_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
+            " *A Santa Paz de Deus!*\n\n"
             "📝 *Nova forma de cadastro!*\n\n"
             "Temos um processo mais simples para cadastro.\n\n"
             "Por favor, clique no botão *📝 CADASTRAR RESPONSÁVEL 📝* ou digite */cadastrar* para iniciar o processo passo a passo.\n\n"
