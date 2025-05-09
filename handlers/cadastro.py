@@ -478,93 +478,17 @@ async def cancelar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 async def cadastro_comando(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Processa cadastro enviado via comando /cadastro"""
-    texto = update.message.text.replace('/cadastro', '').strip()
-    
-    # Verificar se há dados após o comando
-    if not texto:
-        await update.message.reply_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
-            "📝 *Cadastro Manual*\n\n"
-            "Para cadastrar manualmente, envie no formato:\n"
-            "`/cadastro BR21-0000 / Nome Completo / Função`\n\n"
-            "Exemplo:\n"
-            "`/cadastro BR21-0270 / João Silva / Cooperador`\n\n"
-            "Ou utilize o comando */cadastrar* para o processo guiado passo a passo.\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
-        )
-        return
-    
-    # Verificar formato
-    if not verificar_formato_cadastro(texto):
-        await update.message.reply_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
-            "❌ *Formato inválido!*\n\n"
-            "📝 Por favor, use o formato correto:\n"
-            "`BR21-0000 / Seu Nome Completo / Sua Função`\n\n"
-            "📌 *Exemplo:*\n"
-            "`BR21-0270 / João Silva / Cooperador`\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
-        )
-        return
-    
-    # Extrair dados
-    codigo, nome, funcao = extrair_dados_cadastro(texto)
-    
-    if not codigo or not nome or not funcao:
-        await update.message.reply_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
-            "❌ *Não foi possível processar os dados!*\n\n"
-            "Por favor, verifique o formato e tente novamente.\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
-        )
-        return
-    
-    # Verificar se já existe cadastro exatamente igual
-    if verificar_cadastro_existente(codigo, nome, funcao):
-        await update.message.reply_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
-            "⚠️ *Atenção!*\n\n"
-            f"Já existe um cadastro para a Casa de Oração *{codigo}* com o nome *{nome}* e função *{funcao}*.\n\n"
-            "Por favor, verifique os dados ou entre em contato com o administrador.\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
-        )
-        return
-    
-    # Salvar cadastro
-    sucesso, status = salvar_cadastro(codigo, nome, funcao, 
-                                     update.effective_user.id, 
-                                     update.effective_user.username or "")
-    
-    if sucesso:
-        # Obter nome da igreja
-        igreja = obter_igreja_por_codigo(codigo)
-        nome_igreja = igreja['nome'] if igreja else "Desconhecida"
-        
-        await update.message.reply_text(
-            f"🕊️ *A Santa Paz de Deus!*\n\n"
-            f"✅ *Cadastro recebido com sucesso:*\n\n"
-            f"📍 *Código:* `{codigo}`\n"
-            f"🏢 *Casa:* `{nome_igreja}`\n"
-            f"👤 *Nome:* `{nome}`\n"
-            f"🔧 *Função:* `{funcao}`\n\n"
-            f"🗂️ Estamos em *fase de cadastro* dos irmãos responsáveis pelo acompanhamento.\n"
-            f"📢 Assim que esta fase for concluída, os *alertas automáticos de consumo* começarão a ser enviados.\n\n"
-            f"_Deus te abençoe!_ 🙌",
-            parse_mode='Markdown'
-        )
-    else:
-        await update.message.reply_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
-            "❌ *Houve um problema ao processar seu cadastro!*\n\n"
-            "Por favor, tente novamente mais tarde ou entre em contato com o administrador.\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
-        )
+    """Redireciona para o cadastro em etapas"""
+    await update.message.reply_text(
+        "🕊️ *A Santa Paz de Deus!*\n\n"
+        "📝 *Nova forma de cadastro!*\n\n"
+        "Agora utilizamos um processo mais simples, guiado passo a passo.\n\n"
+        "Por favor, use o comando */cadastrar* para iniciar o cadastro.\n\n"
+        "_Deus te abençoe!_ 🙏",
+        parse_mode='Markdown'
+    )
+    # Iniciar automaticamente o fluxo de cadastro em etapas
+    return await iniciar_cadastro_etapas(update, context)
 
 def registrar_handlers_cadastro(application):
     """Registra handlers relacionados ao cadastro"""
