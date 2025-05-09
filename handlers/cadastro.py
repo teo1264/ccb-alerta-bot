@@ -15,10 +15,16 @@ from telegram.ext import (
 )
 
 from config import CODIGO, NOME, FUNCAO, CONFIRMAR
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils import salvar_cadastro, verificar_cadastro_existente, extrair_dados_cadastro
+try:
+    # Primeiro tenta importar diretamente (funciona se o arquivo estiver no PYTHONPATH)
+    from utils import salvar_cadastro, verificar_cadastro_existente, extrair_dados_cadastro
+except ImportError:
+    # Se falhar, tenta encontrar o módulo no diretório raiz
+    import sys
+    import os
+    # Adicionar diretório pai ao path
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+    from utils import salvar_cadastro, verificar_cadastro_existente, extrair_dados_cadastro
 from handlers.data import IGREJAS, FUNCOES, agrupar_igrejas, agrupar_funcoes, obter_igreja_por_codigo
 
 # Logger
