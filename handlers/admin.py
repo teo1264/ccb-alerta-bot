@@ -5,9 +5,10 @@
 Handlers para funções administrativas do CCB Alerta Bot
 """
 
-#from handlers.data import FUNCOES, obter_igreja_por_codigo
+from handlers.data import FUNCOES, obter_igreja_por_codigo
 import os
 import pandas as pd
+from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackQueryHandler, ContextTypes
 
@@ -46,71 +47,64 @@ async def exportar_planilha(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
         
-        # Ler o arquivo existente e criar uma nova cópia formatada
-        df = pd.read_excel(EXCEL_FILE)
-        
-        if df.empty:
-            await update.message.reply_text(
-                "🕊️ *A Santa Paz de Deus!*\n\n"
-                "❌ A planilha não contém cadastros.\n\n"
-                "_Deus te abençoe!_ 🙏",
+        # Antes de enviar, vamos verificar e recriar o arquivo se necessário
+        try:
+            # Ler dados do arquivo existente
+            df = pd.read_excel(EXCEL_FILE)
+            
+            # Verificar se há dados
+            if df.empty:
+                await update.message.reply_text(
+                    "🕊️ *A Santa Paz de Deus!*\n\n"
+                    "❌ Planilha vazia, sem cadastros para exportar.\n\n"
+                    "_Deus te abençoe!_ 🙏",
+                    parse_mode='Markdown'
+                )
+                return
+            
+            # Criar arquivo temporário com formatação adequada
+            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+            temp_file = f"temp_{timestamp}.xlsx"
+            
+            # Salvar com formatação de colunas
+            with pd.ExcelWriter(temp_file, engine='openpyxl') as writer:
+                df.to_excel(writer, index=False)
+                
+                # Obter a planilha ativa
+                worksheet = writer.sheets['Sheet1']
+                
+                # Ajustar largura das colunas
+                worksheet.column_dimensions['A'].width = 15  # Codigo_Casa
+                worksheet.column_dimensions['B'].width = 30  # Nome
+                worksheet.column_dimensions['C'].width = 20  # Funcao
+                worksheet.column_dimensions['D'].width = 15  # User_ID
+                worksheet.column_dimensions['E'].width = 20  # Username
+                worksheet.column_dimensions['F'].width = 20  # Data_Cadastro
+                worksheet.column_dimensions['G'].width = 20  # Ultima_Atualizacao
+            
+            # Enviar o arquivo temporário
+            await update.message.reply_document(
+                document=open(temp_file, 'rb'),
+                filename="responsaveis_casas.xlsx",
+                caption=f"🕊️ *A Santa Paz de Deus!*\n\nAqui está o arquivo com {len(df)} cadastros de responsáveis.\n\n_Deus te abençoe!_ 🙏",
                 parse_mode='Markdown'
             )
-            return
-        
-        # Gerar um nome de arquivo temporário único
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        temp_file = f"export_{timestamp}.xlsx"
-        
-        # Salvar para o novo arquivo com formatação explícita
-        with pd.ExcelWriter(temp_file, engine='openpyxl') as writer:
-            df.to_excel(writer, index=False)
             
-            # Obter a planilha ativa
-            worksheet = writer.sheets['Sheet1']
-            
-            # Ajustar largura das colunas
-            worksheet.column_dimensions['A'].width = 15  # Codigo_Casa
-            worksheet.column_dimensions['B'].width = 30  # Nome
-            worksheet.column_dimensions['C'].width = 20  # Funcao
-            worksheet.column_dimensions['D'].width = 15  # User_ID
-            worksheet.column_dimensions['E'].width = 20  # Username
-            worksheet.column_dimensions['F'].width = 20  # Data_Cadastro
-            worksheet.column_dimensions['G'].width = 20  # Ultima_Atualizacao
-        
-        # Também criar uma versão CSV para garantia
-        csv_file = f"export_{timestamp}.csv"
-        df.to_csv(csv_file, index=False)
-        
-        # Enviar ambos os arquivos
-        await update.message.reply_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
-            f"📊 Encontrados *{len(df)}* cadastros.\n"
-            "Enviando os arquivos em Excel e CSV...\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
-        )
-        
-        # Enviar Excel
-        await update.message.reply_document(
-            document=open(temp_file, 'rb'),
-            filename="responsaveis_casas.xlsx",
-            caption="📊 Planilha Excel com todos os cadastros."
-        )
-        
-        # Enviar CSV
-        await update.message.reply_document(
-            document=open(csv_file, 'rb'),
-            filename="responsaveis_casas.csv",
-            caption="📄 Versão CSV (pode ser aberta em qualquer editor de texto)"
-        )
-        
-        # Limpar arquivos temporários
-        try:
+            # Remover arquivo temporário após envio
             os.remove(temp_file)
-            os.remove(csv_file)
-        except:
-            pass
+            
+        except Exception as e:
+            await update.message.reply_text(
+                f"❌ Erro ao processar planilha: {str(e)}\n\nTentando enviar arquivo original..."
+            )
+            
+            # Enviar o arquivo original como fallback
+            await update.message.reply_document(
+                document=open(EXCEL_FILE, 'rb'),
+                filename="responsaveis_casas.xlsx",
+                caption="🕊️ *A Santa Paz de Deus!*\n\nAqui está o arquivo com os cadastros de responsáveis.\n\n_Deus te abençoe!_ 🙏",
+                parse_mode='Markdown'
+            )
         
         print(f"Planilha enviada para o administrador: {update.effective_user.id} - {update.effective_user.username}")
         
@@ -238,9 +232,6 @@ async def listar_cadastros(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "_Deus te abençoe!_ 🙏",
             parse_mode='Markdown'
         )
-
-# Adicionar isto no início do arquivo (nos imports)
-from handlers.data import FUNCOES, obter_igreja_por_codigo
 
 async def limpar_cadastros(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Remove todos os cadastros (apenas para administradores)"""
