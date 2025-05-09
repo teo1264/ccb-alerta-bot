@@ -29,7 +29,7 @@ async def exportar_planilha(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Verificar se o usuário é administrador
     if not verificar_admin(update.effective_user.id):
         await update.message.reply_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
+            " *A Santa Paz de Deus!*\n\n"
             "⚠️ *Acesso Negado*\n\n"
             "Você não tem permissão para acessar esta função.\n\n"
             "_Deus te abençoe!_ 🙏",
@@ -40,7 +40,7 @@ async def exportar_planilha(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if not os.path.exists(EXCEL_FILE):
             await update.message.reply_text(
-                "🕊️ *A Santa Paz de Deus!*\n\n"
+                " *A Santa Paz de Deus!*\n\n"
                 "❌ Nenhum arquivo de cadastro encontrado.\n\n"
                 "_Deus te abençoe!_ 🙏",
                 parse_mode='Markdown'
@@ -55,7 +55,7 @@ async def exportar_planilha(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Verificar se há dados
             if df.empty:
                 await update.message.reply_text(
-                    "🕊️ *A Santa Paz de Deus!*\n\n"
+                    " *A Santa Paz de Deus!*\n\n"
                     "❌ Planilha vazia, sem cadastros para exportar.\n\n"
                     "_Deus te abençoe!_ 🙏",
                     parse_mode='Markdown'
@@ -121,7 +121,7 @@ async def listar_cadastros(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Verificar se o usuário é administrador
     if not verificar_admin(update.effective_user.id):
         await update.message.reply_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
+            " *A Santa Paz de Deus!*\n\n"
             "⚠️ *Acesso Negado*\n\n"
             "Você não tem permissão para acessar esta função.\n\n"
             "_Deus te abençoe!_ 🙏",
@@ -145,7 +145,7 @@ async def listar_cadastros(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if not os.path.exists(EXCEL_FILE):
             await update.message.reply_text(
-                "🕊️ *A Santa Paz de Deus!*\n\n"
+                " *A Santa Paz de Deus!*\n\n"
                 "❌ Nenhum cadastro encontrado.\n\n"
                 "_Deus te abençoe!_ 🙏",
                 parse_mode='Markdown'
@@ -156,7 +156,7 @@ async def listar_cadastros(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         if df.empty:
             await update.message.reply_text(
-                "🕊️ *A Santa Paz de Deus!*\n\n"
+                " *A Santa Paz de Deus!*\n\n"
                 "❌ Nenhum cadastro encontrado.\n\n"
                 "_Deus te abençoe!_ 🙏",
                 parse_mode='Markdown'
@@ -227,7 +227,7 @@ async def listar_cadastros(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
     except Exception as e:
         await update.message.reply_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
+            " *A Santa Paz de Deus!*\n\n"
             f"❌ Erro ao listar cadastros: {str(e)}\n\n"
             "_Deus te abençoe!_ 🙏",
             parse_mode='Markdown'
@@ -238,7 +238,7 @@ async def limpar_cadastros(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Verificar se o usuário é administrador
     if not verificar_admin(update.effective_user.id):
         await update.message.reply_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
+            " *A Santa Paz de Deus!*\n\n"
             "⚠️ *Acesso Negado*\n\n"
             "Você não tem permissão para acessar esta função.\n\n"
             "_Deus te abençoe!_ 🙏",
@@ -256,7 +256,7 @@ async def limpar_cadastros(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(
-        "🕊️ *A Santa Paz de Deus!*\n\n"
+        " *A Santa Paz de Deus!*\n\n"
         "⚠️ *ATENÇÃO!*\n\n"
         "Você está prestes a *APAGAR TODOS OS CADASTROS*.\n"
         "Esta ação NÃO pode ser desfeita!\n\n"
@@ -319,7 +319,7 @@ async def processar_callback_admin(update: Update, context: ContextTypes.DEFAULT
     
     elif query.data == "cancelar_limpar":
         await query.edit_message_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
+            " *A Santa Paz de Deus!*\n\n"
             "✅ *Operação cancelada!*\n\n"
             "Nenhum cadastro foi removido.\n\n"
             "_Deus te abençoe!_ 🙏",
@@ -331,7 +331,7 @@ async def adicionar_admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE
     # Verificar se o usuário é administrador
     if not verificar_admin(update.effective_user.id):
         await update.message.reply_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
+            " *A Santa Paz de Deus!*\n\n"
             "⚠️ *Acesso Negado*\n\n"
             "Você não tem permissão para acessar esta função.\n\n"
             "_Deus te abençoe!_ 🙏",
@@ -343,7 +343,7 @@ async def adicionar_admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE
     args = context.args
     if not args or not args[0].isdigit():
         await update.message.reply_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
+            " *A Santa Paz de Deus!*\n\n"
             "❌ *Formato inválido!*\n\n"
             "Use: `/admin_add ID_DO_USUARIO`\n"
             "Exemplo: `/admin_add 123456789`\n\n"
@@ -360,7 +360,7 @@ async def adicionar_admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     if not sucesso and status == "já é admin":
         await update.message.reply_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
+            " *A Santa Paz de Deus!*\n\n"
             "ℹ️ Este usuário já é um administrador.\n\n"
             "_Deus te abençoe!_ 🙏",
             parse_mode='Markdown'
@@ -369,14 +369,14 @@ async def adicionar_admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     if sucesso:
         await update.message.reply_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
+            " *A Santa Paz de Deus!*\n\n"
             f"✅ Administrador adicionado com sucesso: `{novo_admin_id}`\n\n"
             "_Deus te abençoe!_ 🙏",
             parse_mode='Markdown'
         )
     else:
         await update.message.reply_text(
-            "🕊️ *A Santa Paz de Deus!*\n\n"
+            " *A Santa Paz de Deus!*\n\n"
             f"❌ Erro ao adicionar administrador: {status}\n\n"
             "_Deus te abençoe!_ 🙏",
             parse_mode='Markdown'
