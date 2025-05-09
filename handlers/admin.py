@@ -12,6 +12,9 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackQueryHandler, ContextTypes
 
 from config import EXCEL_FILE, ADMIN_IDS
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils import verificar_admin, adicionar_admin, fazer_backup_planilha
 
 async def exportar_planilha(update: Update, context: ContextTypes.DEFAULT_TYPE):
