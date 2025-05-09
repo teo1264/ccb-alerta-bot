@@ -45,14 +45,72 @@ async def exportar_planilha(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode='Markdown'
             )
             return
+        
+        # Ler o arquivo existente e criar uma nova cópia formatada
+        df = pd.read_excel(EXCEL_FILE)
+        
+        if df.empty:
+            await update.message.reply_text(
+                "🕊️ *A Santa Paz de Deus!*\n\n"
+                "❌ A planilha não contém cadastros.\n\n"
+                "_Deus te abençoe!_ 🙏",
+                parse_mode='Markdown'
+            )
+            return
+        
+        # Gerar um nome de arquivo temporário único
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        temp_file = f"export_{timestamp}.xlsx"
+        
+        # Salvar para o novo arquivo com formatação explícita
+        with pd.ExcelWriter(temp_file, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False)
             
-        # Enviar o arquivo
-        await update.message.reply_document(
-            document=open(EXCEL_FILE, 'rb'),
-            filename=EXCEL_FILE,
-            caption="🕊️ *A Santa Paz de Deus!*\n\nAqui está o arquivo com todos os cadastros de responsáveis.\n\n_Deus te abençoe!_ 🙏",
+            # Obter a planilha ativa
+            worksheet = writer.sheets['Sheet1']
+            
+            # Ajustar largura das colunas
+            worksheet.column_dimensions['A'].width = 15  # Codigo_Casa
+            worksheet.column_dimensions['B'].width = 30  # Nome
+            worksheet.column_dimensions['C'].width = 20  # Funcao
+            worksheet.column_dimensions['D'].width = 15  # User_ID
+            worksheet.column_dimensions['E'].width = 20  # Username
+            worksheet.column_dimensions['F'].width = 20  # Data_Cadastro
+            worksheet.column_dimensions['G'].width = 20  # Ultima_Atualizacao
+        
+        # Também criar uma versão CSV para garantia
+        csv_file = f"export_{timestamp}.csv"
+        df.to_csv(csv_file, index=False)
+        
+        # Enviar ambos os arquivos
+        await update.message.reply_text(
+            "🕊️ *A Santa Paz de Deus!*\n\n"
+            f"📊 Encontrados *{len(df)}* cadastros.\n"
+            "Enviando os arquivos em Excel e CSV...\n\n"
+            "_Deus te abençoe!_ 🙏",
             parse_mode='Markdown'
         )
+        
+        # Enviar Excel
+        await update.message.reply_document(
+            document=open(temp_file, 'rb'),
+            filename="responsaveis_casas.xlsx",
+            caption="📊 Planilha Excel com todos os cadastros."
+        )
+        
+        # Enviar CSV
+        await update.message.reply_document(
+            document=open(csv_file, 'rb'),
+            filename="responsaveis_casas.csv",
+            caption="📄 Versão CSV (pode ser aberta em qualquer editor de texto)"
+        )
+        
+        # Limpar arquivos temporários
+        try:
+            os.remove(temp_file)
+            os.remove(csv_file)
+        except:
+            pass
         
         print(f"Planilha enviada para o administrador: {update.effective_user.id} - {update.effective_user.username}")
         
