@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 """
 Configurações globais para o CCB Alerta Bot
 """
-
 import os
 import pandas as pd
 
@@ -13,6 +11,12 @@ TOKEN = "7773179413:AAHqJp-NBPPs6YrSV1kB5-q4vkV3tjDFyy4"
 
 # Arquivo Excel para armazenar os cadastros
 EXCEL_FILE = "data/responsaveis_casas.xlsx"
+
+def verificar_diretorios():
+    """Garante que os diretórios necessários existam"""
+    import os
+    # Garantir que o diretório de dados existe
+    os.makedirs(os.path.dirname(EXCEL_FILE), exist_ok=True)
 
 # IDs de administradores (lista inicial)
 ADMIN_IDS = [5876346562]  # Adicione aqui os IDs dos administradores
@@ -96,5 +100,6 @@ def carregar_admin_ids():
 
 def inicializar_sistema():
     """Inicializa todos os componentes do sistema"""
+    verificar_diretorios()  # Garantir que os diretórios existam antes de inicializar
     carregar_admin_ids()
     inicializar_planilha()
