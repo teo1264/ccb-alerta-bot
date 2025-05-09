@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 """
 CCB Alerta Bot - Bot do Telegram para gerenciamento de casas de oração
 """
-
 import logging
 import os
 from datetime import datetime
@@ -22,6 +20,12 @@ logging.basicConfig(
     level=logging.INFO
 )
 logger = logging.getLogger("CCB-Alerta-Bot")
+
+def verificar_diretorios():
+    """Garante que os diretórios necessários existam"""
+    import os
+    # Garantir que o diretório de dados existe
+    os.makedirs("data", exist_ok=True)
 
 def configurar_logs():
     """Configura pasta e arquivos de log"""
@@ -46,6 +50,9 @@ def main():
     
     # Configurar sistema de logs
     configurar_logs()
+    
+    # Garantir que os diretórios existam
+    verificar_diretorios()
     
     # Inicializar sistema (planilha, carregar administradores, etc.)
     inicializar_sistema()
