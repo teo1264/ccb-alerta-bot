@@ -5,7 +5,7 @@
 Handlers para funções administrativas do CCB Alerta Bot
 """
 
-from handlers.data import FUNCOES, obter_igreja_por_codigo
+#from handlers.data import FUNCOES, obter_igreja_por_codigo
 import os
 import pandas as pd
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
