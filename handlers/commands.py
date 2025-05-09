@@ -23,7 +23,7 @@ async def mensagem_boas_vindas(update: Update, context: ContextTypes.DEFAULT_TYP
     )
     
     await update.message.reply_text(
-        "🕊️ *A Santa Paz de Deus!*\n\n"
+        "🕊 *A Santa Paz de Deus!*\n\n"
         "📢 *Bem-vindo ao sistema de alertas automáticos da CCB ADM Mauá!*\n\n"
         "⚙️ Este serviço está em *fase de desenvolvimento* e funcionará de forma gratuita, auxiliando na gestão das Casas de Oração.\n\n"
         "🔔 *Você receberá alertas sobre:*\n"
@@ -48,7 +48,7 @@ async def mostrar_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     first_name = update.effective_user.first_name or "Sem nome"
     
     await update.message.reply_text(
-        f"🕊️ *A Santa Paz de Deus!*\n\n"
+        f"🕊 *A Santa Paz de Deus!*\n\n"
         f"📋 *Suas informações:*\n\n"
         f"🆔 *Seu ID:* `{user_id}`\n"
         f"👤 *Username:* @{username}\n"
@@ -59,23 +59,42 @@ async def mostrar_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def mostrar_ajuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Exibe a lista de comandos disponíveis"""
-    await update.message.reply_text(
-        "🕊️ *A Santa Paz de Deus!*\n\n"
+    # Verificar se é administrador para mostrar comandos administrativos
+    is_admin = verificar_admin(update.effective_user.id)
+    
+    # Mensagem básica de ajuda para todos os usuários
+    mensagem_ajuda = (
+        "🕊 *A Santa Paz de Deus!*\n\n"
         "📋 *Lista de Comandos Disponíveis:*\n\n"
         "*/start* - Exibe a mensagem de boas-vindas\n"
         "*/cadastrar* - Inicia o processo de cadastro passo a passo\n"
         "*/meu_id* - Mostra seu ID do Telegram\n"
         "*/ajuda* - Exibe esta lista de comandos\n\n"
-        "*Comandos para Administradores:*\n"
-        "*/exportar* - Exporta a planilha de cadastros\n"
-        "*/listar* - Lista todos os cadastros\n"
-        "*/limpar* - Remove todos os cadastros (com confirmação)\n"
-        "*/admin_add ID* - Adiciona um novo administrador\n\n"
+    )
+    
+    # Adicionar comandos administrativos se for administrador
+    if is_admin:
+        mensagem_ajuda += (
+            "*Comandos para Administradores:*\n"
+            "*/exportar* - Exporta a planilha de cadastros\n"
+            "*/listar* - Lista todos os cadastros\n"
+            "*/editar_buscar TERMO* - Busca cadastros para edição\n"
+            "*/editar CODIGO CAMPO VALOR* - Edita um cadastro existente\n"
+            "*/excluir CODIGO NOME* - Exclui um cadastro específico\n"
+            "*/limpar* - Remove todos os cadastros (com confirmação)\n"
+            "*/admin_add ID* - Adiciona um novo administrador\n\n"
+        )
+    
+    mensagem_ajuda += (
         "*Você também pode usar os botões do menu para acessar as funções principais.*\n\n"
-        "_Deus te abençoe!_ 🙏",
+        "_Deus te abençoe!_ 🙏"
+    )
+    
+    await update.message.reply_text(
+        mensagem_ajuda,
         parse_mode='Markdown'
     )
-
+    
 def registrar_comandos_basicos(application):
     """Registra handlers para comandos básicos"""
     application.add_handler(CommandHandler("start", mensagem_boas_vindas))
