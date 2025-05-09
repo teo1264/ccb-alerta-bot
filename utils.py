@@ -65,18 +65,18 @@ def salvar_cadastro(codigo, nome, funcao, user_id, username):
         username (str): Nome de usuário no Telegram
         
     Returns:
-        bool: True se o cadastro foi salvo com sucesso, False caso contrário
+        tuple: (sucesso, status) onde sucesso é um boolean e status é uma mensagem
     """
     try:
-        # Verificar duplicata antes de salvar
-        if verificar_duplicata(codigo):
-            print(f"Tentativa de cadastro duplicado: {codigo}")
-            return False, "duplicado"
+        # Inicializar planilha se não existir
+        inicializar_planilha()
         
         # Data atual em formato brasileiro
         fuso_horario = pytz.timezone('America/Sao_Paulo')
         agora = datetime.now(fuso_horario)
         data_formatada = agora.strftime("%d/%m/%Y %H:%M:%S")
+        
+        # Verificação de duplicata foi removida, pois já é feita em verificar_cadastro_existente
         
         # Criar DataFrame com os dados
         data = {
@@ -90,37 +90,63 @@ def salvar_cadastro(codigo, nome, funcao, user_id, username):
         }
         df_novo = pd.DataFrame(data)
         
-        # Ler a planilha existente (se não existir, inicializar_planilha() já terá criado)
-        df_existente = pd.read_excel(EXCEL_FILE)
+        try:
+            # Ler a planilha existente
+            if os.path.exists(EXCEL_FILE):
+                df_existente = pd.read_excel(EXCEL_FILE)
+                
+                # Verificar se o DataFrame não está vazio
+                if not df_existente.empty:
+                    # Adicionar nova linha
+                    df_atualizado = pd.concat([df_existente, df_novo], ignore_index=True)
+                else:
+                    # Se o DataFrame estiver vazio, usar apenas o novo
+                    df_atualizado = df_novo
+            else:
+                # Se o arquivo não existir, usar apenas o novo DataFrame
+                df_atualizado = df_novo
+                
+        except Exception as e:
+            logger.error(f"Erro ao ler planilha existente: {e}")
+            # Se houver erro na leitura, criar uma nova planilha
+            df_atualizado = df_novo
         
-        # Adicionar nova linha
-        df_atualizado = pd.concat([df_existente, df_novo], ignore_index=True)
-        
-        # Criar um writer com engine openpyxl
-        writer = pd.ExcelWriter(EXCEL_FILE, engine='openpyxl')
-        
-        # Escrever o DataFrame atualizado
-        df_atualizado.to_excel(writer, index=False)
-        
-        # Obter a planilha ativa
-        worksheet = writer.sheets['Sheet1']
-        
-        # Ajustar largura das colunas
-        worksheet.column_dimensions['A'].width = 15  # Codigo_Casa
-        worksheet.column_dimensions['B'].width = 30  # Nome
-        worksheet.column_dimensions['C'].width = 20  # Funcao
-        worksheet.column_dimensions['D'].width = 15  # User_ID
-        worksheet.column_dimensions['E'].width = 20  # Username
-        worksheet.column_dimensions['F'].width = 20  # Data_Cadastro
-        worksheet.column_dimensions['G'].width = 20  # Ultima_Atualizacao
-        
-        # Salvar o arquivo
-        writer.close()
+        # Salvar o DataFrame atualizado
+        try:
+            # Primeiro tentar salvar com formatação
+            writer = pd.ExcelWriter(EXCEL_FILE, engine='openpyxl')
+            df_atualizado.to_excel(writer, index=False)
             
-        print(f"Cadastro salvo com sucesso: {codigo} / {nome} / {funcao}")
-        return True, "sucesso"
+            # Ajustar largura das colunas
+            worksheet = writer.sheets['Sheet1']
+            worksheet.column_dimensions['A'].width = 15  # Codigo_Casa
+            worksheet.column_dimensions['B'].width = 30  # Nome
+            worksheet.column_dimensions['C'].width = 20  # Funcao
+            worksheet.column_dimensions['D'].width = 15  # User_ID
+            worksheet.column_dimensions['E'].width = 20  # Username
+            worksheet.column_dimensions['F'].width = 20  # Data_Cadastro
+            worksheet.column_dimensions['G'].width = 20  # Ultima_Atualizacao
+            
+            # Salvar arquivo
+            writer.close()
+            
+        except Exception as e:
+            logger.error(f"Erro ao salvar planilha formatada: {e}")
+            # Em caso de erro, tentar salvar sem formatação
+            df_atualizado.to_excel(EXCEL_FILE, index=False)
+        
+        # Verificar se o salvamento foi bem-sucedido
+        try:
+            # Tenta ler o arquivo recém-salvo para confirmar
+            pd.read_excel(EXCEL_FILE)
+            logger.info(f"Cadastro salvo com sucesso: {codigo} / {nome} / {funcao}")
+            return True, "sucesso"
+        except Exception as e:
+            logger.error(f"Erro ao verificar salvamento: {e}")
+            return False, "erro_verificacao"
+            
     except Exception as e:
-        print(f"Erro ao salvar cadastro: {e}")
+        logger.error(f"Erro ao salvar cadastro: {e}")
         return False, str(e)
 
 def extrair_dados_cadastro(texto):
