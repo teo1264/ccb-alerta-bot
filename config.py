@@ -12,7 +12,7 @@ import pandas as pd
 TOKEN = "7773179413:AAHqJp-NBPPs6YrSV1kB5-q4vkV3tjDFyy4"
 
 # Arquivo Excel para armazenar os cadastros
-EXCEL_FILE = "responsaveis_casas.xlsx"
+EXCEL_FILE = "data/responsaveis_casas.xlsx"
 
 # IDs de administradores (lista inicial)
 ADMIN_IDS = [5876346562]  # Adicione aqui os IDs dos administradores
