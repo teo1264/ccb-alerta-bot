@@ -24,16 +24,16 @@ async def mensagem_boas_vindas(update: Update, context: ContextTypes.DEFAULT_TYP
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await update.message.reply_text(
-            " *A Paz de Deus, irmão!*\n\n"
+            "*A Paz de Deus, irmão!*\n\n"
             "Antes de prosseguir, informamos que este canal coleta *seu nome*, *função* e *ID do Telegram*.\n\n"
-            "Esses dados são utilizados **exclusivamente para comunicação administrativa e operacional** "
+            "*Esses dados são utilizados exclusivamente para comunicação administrativa e operacional* "
             "das Casas de Oração da nossa região.\n\n"
-            "Eles **não serão compartilhados com terceiros** e são tratados conforme a "
-            "**Lei Geral de Proteção de Dados (LGPD – Lei nº 13.709/2018)**.\n\n"
+            "Eles *não serão compartilhados com terceiros* e são tratados conforme a "
+            "*Lei Geral de Proteção de Dados (LGPD – Lei nº 13.709/2018)*.\n\n"
             "Ao continuar, você autoriza o uso dessas informações para envio de mensagens "
             "relacionadas à sua função ou responsabilidade.\n\n"
             "Você pode solicitar a exclusão dos seus dados a qualquer momento usando o comando:\n"
-            "*/remover*\n\n"
+            "*\\/remover*\n\n"
             "Se estiver de acordo, clique no botão abaixo para continuar.",
             reply_markup=reply_markup,
             parse_mode='Markdown'
@@ -54,19 +54,19 @@ async def mensagem_boas_vindas(update: Update, context: ContextTypes.DEFAULT_TYP
     )
     
     await update.message.reply_text(
-        " *A Santa Paz de Deus!*\n\n"
+        "*A Santa Paz de Deus!*\n\n"
         "📢 *Bem-vindo ao sistema de alertas automáticos da CCB ADM Mauá!*\n\n"
         "⚙️ Este serviço está em *fase de desenvolvimento* e funcionará de forma gratuita, auxiliando na gestão das Casas de Oração.\n\n"
         "🔔 *Você receberá alertas sobre:*\n"
-        "• 💧 Consumo excessivo de água (BRK)\n"
-        "• ⚡ Consumo fora do padrão de energia (ENEL)\n"
-        "• ☀️ Relatórios mensais de compensação (para casas com sistema fotovoltaico)\n\n"
+        "• 💧 *Consumo excessivo de água (BRK)*\n"
+        "• ⚡ *Consumo fora do padrão de energia (ENEL)*\n"
+        "• ☀️ *Relatórios mensais de compensação* (para casas com sistema fotovoltaico)\n\n"
         "📝 *Utilize o botão abaixo para cadastrar ou o menu de ajuda para mais informações.*\n\n"
-        "👥 Destinado a:\n"
-        "✅ Cooperadores\n"
-        "✅ Encarregados de Manutenção\n"
-        "✅ Responsáveis pela Escrita\n"
-        "✅ E demais irmãos do ministério\n\n"
+        "👥 *Destinado a:*\n"
+        "✅ *Cooperadores*\n"
+        "✅ *Encarregados de Manutenção*\n"
+        "✅ *Responsáveis pela Escrita*\n"
+        "✅ *E demais irmãos do ministério*\n\n"
         "_Deus te abençoe!_ 🙏",
         parse_mode='Markdown',
         reply_markup=reply_markup
@@ -83,10 +83,10 @@ async def processar_aceite_lgpd(update: Update, context: ContextTypes.DEFAULT_TY
         
         # Editar a mensagem para confirmar o aceite
         await query.edit_message_text(
-            " *A Santa Paz de Deus!*\n\n"
+            "*A Santa Paz de Deus!*\n\n"
             "✅ *Agradecemos por aceitar os termos!*\n\n"
-            "Você agora pode utilizar todas as funcionalidades do bot.\n"
-            "Use o comando /start para continuar.\n\n"
+            "*Você agora pode utilizar todas as funcionalidades do bot.*\n"
+            "*Use o comando /start para continuar.*\n\n"
             "_Deus te abençoe!_ 🙏",
             parse_mode='Markdown'
         )
@@ -101,12 +101,12 @@ async def mostrar_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     first_name = update.effective_user.first_name or "Sem nome"
     
     await update.message.reply_text(
-        f" *A Paz de Deus!*\n\n"
-        f"📋 *Suas informações:*\n\n"
-        f"🆔 *Seu ID:* `{user_id}`\n"
-        f"👤 *Username:* @{username}\n"
-        f"📝 *Nome:* {first_name}\n\n"
-        f"_Guarde seu ID para configurar como administrador!_",
+        "*A Paz de Deus!*\n\n"
+        "📋 *Suas informações:*\n\n"
+        "🆔 *Seu ID:* `" + str(user_id) + "`\n"
+        "👤 *Username:* @" + username + "\n"
+        "📝 *Nome:* " + first_name + "\n\n"
+        "*Guarde seu ID para configurar como administrador!*",
         parse_mode='Markdown'
     )
 
@@ -117,36 +117,36 @@ async def mostrar_ajuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Mensagem básica de ajuda para todos os usuários
     mensagem_ajuda = (
-        " *A Paz de Deus!*\n\n"
+        "*A Paz de Deus!*\n\n"
         "📋 *Lista de Comandos Disponíveis:*\n\n"
-        "*/start* - Exibe a mensagem de boas-vindas\n"
-        "*/cadastrar* - Inicia o processo de cadastro passo a passo\n"
-        "*/meu_id* - Mostra seu ID do Telegram\n"
-        "*/remover* - Solicita a exclusão dos seus dados (LGPD)\n"
-        "*/privacidade* - Exibe a política de privacidade completa\n"
-        "*/ajuda* - Exibe esta lista de comandos\n\n"
+        "*\\/start* - Exibe a mensagem de boas-vindas\n"
+        "*\\/cadastrar* - Inicia o processo de cadastro passo a passo\n"
+        "*\\/meu_id* - Mostra seu ID do Telegram\n"
+        "*\\/remover* - Solicita a exclusão dos seus dados (LGPD)\n"
+        "*\\/privacidade* - Exibe a política de privacidade completa\n"
+        "*\\/ajuda* - Exibe esta lista de comandos\n\n"
     )
     
     # Seção de LGPD
     mensagem_ajuda += (
         "🔒 *Proteção de Dados (LGPD)*\n"
-        "Este bot coleta seu nome, função e ID do Telegram para comunicação "
-        "administrativa das Casas de Oração. Seus dados são tratados conforme "
-        "a Lei Geral de Proteção de Dados (Lei nº 13.709/2018).\n\n"
+        "*Este bot coleta seu nome, função e ID do Telegram para comunicação* "
+        "*administrativa das Casas de Oração. Seus dados são tratados conforme* "
+        "*a Lei Geral de Proteção de Dados (Lei nº 13.709/2018).*\n\n"
     )
     
     # Adicionar comandos administrativos se for administrador
     if is_admin:
         mensagem_ajuda += (
             "*Comandos para Administradores:*\n"
-            "*/exportar* - Exporta a planilha de cadastros\n"
-            "*/listar* - Lista todos os cadastros\n"
-            "*/editar_buscar TERMO* - Busca cadastros para edição\n"
-            "*/editar CODIGO CAMPO VALOR* - Edita um cadastro existente\n"
-            "*/excluir CODIGO NOME* - Exclui um cadastro específico\n"
-            "*/excluir_id NUMERO* - Exclui um cadastro pelo número da listagem\n"
-            "*/limpar* - Remove todos os cadastros (com confirmação)\n"
-            "*/admin_add ID* - Adiciona um novo administrador\n\n"
+            "*\\/exportar* - Exporta a planilha de cadastros\n"
+            "*\\/listar* - Lista todos os cadastros\n"
+            "*\\/editar_buscar TERMO* - Busca cadastros para edição\n"
+            "*\\/editar CODIGO CAMPO VALOR* - Edita um cadastro existente\n"
+            "*\\/excluir CODIGO NOME* - Exclui um cadastro específico\n"
+            "*\\/excluir_id NUMERO* - Exclui um cadastro pelo número da listagem\n"
+            "*\\/limpar* - Remove todos os cadastros (com confirmação)\n"
+            "*\\/admin_add ID* - Adiciona um novo administrador\n\n"
         )
     
     mensagem_ajuda += (
