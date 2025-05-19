@@ -91,8 +91,8 @@ async def processar_aceite_lgpd(update: Update, context: ContextTypes.DEFAULT_TY
             parse_mode='Markdown'
         )
         
-        # Mostrar a mensagem de boas-vindas normal após o aceite
-        await mensagem_boas_vindas(update, context)
+        # NÃO chamar mensagem_boas_vindas aqui - isso causa o erro
+        # Em vez disso, instruímos o usuário a usar /start
 
 async def mostrar_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Mostra o ID do usuário que enviou a mensagem"""
@@ -123,6 +123,7 @@ async def mostrar_ajuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "*/cadastrar* - Inicia o processo de cadastro passo a passo\n"
         "*/meu_id* - Mostra seu ID do Telegram\n"
         "*/remover* - Solicita a exclusão dos seus dados (LGPD)\n"
+        "*/privacidade* - Exibe a política de privacidade completa\n"
         "*/ajuda* - Exibe esta lista de comandos\n\n"
     )
     
