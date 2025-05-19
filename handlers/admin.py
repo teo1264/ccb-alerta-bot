@@ -24,6 +24,9 @@ except ImportError:
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
     from utils import verificar_admin, adicionar_admin, fazer_backup_planilha
 
+# Estados para o gerenciamento de cadastros
+SELECIONAR_ACAO, CONFIRMAR_EXCLUSAO = range(2)
+
 async def exportar_planilha(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Envia a planilha de cadastros como um arquivo (apenas para administradores)"""
     # Verificar se o usuário é administrador
@@ -261,6 +264,10 @@ async def listar_cadastros(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Formatar mensagem detalhada com os cadastros
         mensagem = "📋 *Lista de Cadastros:*\n\n"
         
+        # NOVA FUNCIONALIDADE: Criar índice global para exclusão simplificada
+        indice_global = 1
+        indices_cadastros = {}  # Dicionário para mapear índices a registros
+        
         for codigo_igreja, grupo in igrejas_agrupadas:
             # Obter nome da igreja a partir do código
             igreja_info = obter_igreja_por_codigo(codigo_igreja)
@@ -269,9 +276,27 @@ async def listar_cadastros(update: Update, context: ContextTypes.DEFAULT_TYPE):
             mensagem += f"📍 *{codigo_igreja} - {nome_igreja}*\n"
             
             for i, row in grupo.iterrows():
-                mensagem += f"  👤 *{row['Nome']}* - {row['Funcao']}\n"
+                # Adicionar número de índice global
+                mensagem += f"  #{indice_global} 👤 *{row['Nome']}* - {row['Funcao']}\n"
+                
+                # Armazenar mapeamento de índice para cadastro
+                indices_cadastros[indice_global] = {
+                    'codigo': row['Codigo_Casa'],
+                    'nome': row['Nome'],
+                    'funcao': row['Funcao'],
+                    'id': i  # Índice na planilha
+                }
+                indice_global += 1
             
             mensagem += "\n"
+        
+        # Armazenar índices no contexto do usuário para uso posterior
+        context.user_data['indices_cadastros'] = indices_cadastros
+        
+        # Adicionar instrução para exclusão simplificada
+        mensagem += "*Para excluir um cadastro, use:*\n"
+        mensagem += "`/excluir_id NÚMERO`\n\n"
+        mensagem += "Exemplo: `/excluir_id 3` para excluir o cadastro #3\n\n"
         
         # Enviar primeiro o resumo estatístico
         await update.message.reply_text(resumo, parse_mode='Markdown')
@@ -675,6 +700,197 @@ async def editar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown'
         )
 
+async def excluir_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Exclui um cadastro pelo número de ID (simplificado)
+    Uso: /excluir_id NUMERO
+    Exemplo: /excluir_id 3
+    """
+    # Verificar se o usuário é administrador
+    if not verificar_admin(update.effective_user.id):
+        await update.message.reply_text(
+            "A Paz de Deus!\n\n"
+            "⚠️ *Acesso Negado*\n\n"
+            "Você não tem permissão para acessar esta função.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        return
+    
+    # Verificar argumentos
+    args = context.args
+    if not args or not args[0].isdigit():
+        await update.message.reply_text(
+            "A Paz de Deus!\n\n"
+            "❌ *Formato inválido!*\n\n"
+            "Use: `/excluir_id NUMERO`\n"
+            "Exemplo: `/excluir_id 3`\n\n"
+            "O número deve corresponder ao índice mostrado nos resultados de busca.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        return
+    
+    # Obter o ID do cadastro a ser excluído
+    indice = int(args[0])
+    
+    # Verificar se há cadastros no contexto
+    if 'indices_cadastros' not in context.user_data or not context.user_data['indices_cadastros']:
+        await update.message.reply_text(
+            "A Paz de Deus!\n\n"
+            "❓ Por favor, primeiro use `/listar` ou `/buscar` para ver os cadastros disponíveis.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        return
+    
+    # Verificar se o índice existe
+    indices_cadastros = context.user_data['indices_cadastros']
+    if indice not in indices_cadastros:
+        await update.message.reply_text(
+            "A Paz de Deus!\n\n"
+            f"❌ Não foi encontrado cadastro com o índice #{indice}.\n\n"
+            "Use `/listar` ou `/buscar` para ver os números de índice corretos.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        return
+    
+    # Obter dados do cadastro
+    cadastro = indices_cadastros[indice]
+    
+    # Obter nome da igreja para a mensagem de confirmação
+    nome_igreja = "Desconhecida"
+    try:
+        igreja_info = obter_igreja_por_codigo(cadastro['codigo'])
+        if igreja_info:
+            nome_igreja = igreja_info['nome']
+    except:
+        pass
+    
+    # Armazenar temporariamente o cadastro a ser excluído
+    context.user_data['cadastro_exclusao'] = cadastro
+    
+    # Botões de confirmação
+    keyboard = [
+        [
+            InlineKeyboardButton("✅ Sim, excluir", callback_data="confirmar_exclusao_id"),
+            InlineKeyboardButton("❌ Não, cancelar", callback_data="cancelar_exclusao_id")
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(
+        "A Paz de Deus!\n\n"
+        "⚠️ *Confirmação de Exclusão*\n\n"
+        "Você está prestes a excluir o seguinte cadastro:\n\n"
+        f"📍 *Código:* `{cadastro['codigo']}`\n"
+        f"🏢 *Casa:* `{nome_igreja}`\n"
+        f"👤 *Nome:* `{cadastro['nome']}`\n"
+        f"🧑‍💼 *Função:* `{cadastro['funcao']}`\n\n"
+        "Tem certeza que deseja excluir este cadastro?\n\n"
+        "Esta ação não pode ser desfeita!",
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
+
+async def processar_callback_exclusao(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Processa os callbacks de confirmação ou cancelamento de exclusão"""
+    query = update.callback_query
+    await query.answer()
+    
+    # Verificar se o usuário é administrador
+    if not verificar_admin(update.effective_user.id):
+        await query.edit_message_text(
+            "A Paz de Deus!\n\n"
+            "⚠️ *Acesso Negado*\n\n"
+            "Você não tem permissão para acessar esta função.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        return
+    
+    if query.data == "cancelar_exclusao_id":
+        # Limpar dados de exclusão
+        if 'cadastro_exclusao' in context.user_data:
+            del context.user_data['cadastro_exclusao']
+        
+        await query.edit_message_text(
+            "A Paz de Deus!\n\n"
+            "✅ *Exclusão cancelada!*\n\n"
+            "Nenhum cadastro foi excluído.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        return
+    
+    elif query.data == "confirmar_exclusao_id":
+        # Verificar se há dados de exclusão
+        if 'cadastro_exclusao' not in context.user_data:
+            await query.edit_message_text(
+                "A Paz de Deus!\n\n"
+                "❌ Não foi possível excluir o cadastro. Dados não encontrados.\n\n"
+                "Por favor, tente novamente.\n\n"
+                "_Deus te abençoe!_ 🙏",
+                parse_mode='Markdown'
+            )
+            return
+        
+        cadastro = context.user_data['cadastro_exclusao']
+        
+        try:
+            # Fazer backup antes de modificar
+            fazer_backup_planilha()
+            
+            # Carregar planilha
+            df = pd.read_excel(EXCEL_FILE)
+            
+            # Localizar e excluir o cadastro
+            df_atualizado = df.drop(cadastro['id'])
+            
+            # Salvar planilha
+            df_atualizado.to_excel(EXCEL_FILE, index=False)
+            
+            # Obter nome da igreja para a mensagem de confirmação
+            nome_igreja = "Desconhecida"
+            try:
+                igreja_info = obter_igreja_por_codigo(cadastro['codigo'])
+                if igreja_info:
+                    nome_igreja = igreja_info['nome']
+            except:
+                pass
+            
+            await query.edit_message_text(
+                "A Paz de Deus!\n\n"
+                "✅ *Cadastro excluído com sucesso!*\n\n"
+                f"📍 *Código:* `{cadastro['codigo']}`\n"
+                f"🏢 *Casa:* `{nome_igreja}`\n"
+                f"👤 *Nome:* `{cadastro['nome']}`\n"
+                f"🧑‍💼 *Função:* `{cadastro['funcao']}`\n\n"
+                "_Deus te abençoe!_ 🙏",
+                parse_mode='Markdown'
+            )
+            
+            # Limpar dados de exclusão
+            del context.user_data['cadastro_exclusao']
+            
+            # Atualizar a lista de índices para refletir a exclusão
+            if 'indices_cadastros' in context.user_data:
+                # Não podemos simplesmente remover o índice, pois os outros índices 
+                # não seriam atualizados. Em vez disso, marcamos como excluído
+                for idx in context.user_data['indices_cadastros']:
+                    if context.user_data['indices_cadastros'][idx].get('id') == cadastro['id']:
+                        context.user_data['indices_cadastros'][idx]['excluido'] = True
+            
+        except Exception as e:
+            await query.edit_message_text(
+                "A Paz de Deus!\n\n"
+                f"❌ Erro ao excluir cadastro: {str(e)}\n\n"
+                "_Deus te abençoe!_ 🙏",
+                parse_mode='Markdown'
+            )
+            return
+
 async def excluir_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Exclui um cadastro específico (apenas para administradores)
@@ -783,10 +999,19 @@ def registrar_handlers_admin(application):
     application.add_handler(CommandHandler("admin_add", adicionar_admin_cmd))
     application.add_handler(CommandHandler("editar_buscar", editar_buscar))
     application.add_handler(CommandHandler("editar", editar_cadastro))
-    application.add_handler(CommandHandler("excluir", excluir_cadastro))  # Nova linha
+    application.add_handler(CommandHandler("excluir", excluir_cadastro))
+    
+    # Novo comando para exclusão por ID
+    application.add_handler(CommandHandler("excluir_id", excluir_id))
     
     # Handler para os callbacks de confirmação nas funções administrativas
     application.add_handler(CallbackQueryHandler(
         processar_callback_admin, 
         pattern='^(confirmar_limpar|cancelar_limpar)$'
+    ))
+    
+    # Handler para callbacks de confirmação de exclusão
+    application.add_handler(CallbackQueryHandler(
+        processar_callback_exclusao, 
+        pattern='^(confirmar_exclusao_id|cancelar_exclusao_id)$'
     ))
