@@ -73,7 +73,7 @@ async def iniciar_cadastro_etapas(update: Update, context: ContextTypes.DEFAULT_
     logger.info(f"Iniciando cadastro para usuário {update.effective_user.id}")
     await mostrar_menu_igrejas(update, context)
     return SELECIONAR_IGREJA
-    
+
 async def mostrar_menu_igrejas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Mostra o menu de seleção de igrejas paginado"""
     # Agrupar igrejas em páginas
@@ -470,7 +470,7 @@ async def confirmar_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Sucesso
     await query.edit_message_text(
-        f" *Projeto Débito Automatico*\n\n"
+        f" *Projeto Débito Automático*\n\n"
         f"✅ *Cadastro recebido com sucesso:*\n\n"
         f"📍 *Código:* `{codigo}`\n"
         f"🏢 *Casa:* `{nome_igreja}`\n"
@@ -543,11 +543,17 @@ async def processar_aceite_lgpd_cadastro(update: Update, context: ContextTypes.D
             "_Deus te abençoe!_ 🙏",
             parse_mode='Markdown'
         )
-        
+
 def registrar_handlers_cadastro(application):
     """Registra handlers relacionados ao cadastro"""
     # Handler para cadastro manual via comando
     application.add_handler(CommandHandler("cadastro", cadastro_comando))
+    
+    # Callback handler para aceite de LGPD no cadastro
+    application.add_handler(CallbackQueryHandler(
+        processar_aceite_lgpd_cadastro, 
+        pattern='^aceitar_lgpd_cadastro$'
+    ))
     
     # Handler para cadastro em etapas (conversation)
     cadastro_handler = ConversationHandler(
@@ -581,9 +587,4 @@ def registrar_handlers_cadastro(application):
         name="cadastro_conversation",
         persistent=False
     )
-    # Callback handler para aceite de LGPD no cadastro
-application.add_handler(CallbackQueryHandler(
-    processar_aceite_lgpd_cadastro, 
-    pattern='^aceitar_lgpd_cadastro$'
-))
     application.add_handler(cadastro_handler)
