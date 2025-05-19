@@ -144,6 +144,7 @@ async def mostrar_ajuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "*/editar_buscar TERMO* - Busca cadastros para edição\n"
             "*/editar CODIGO CAMPO VALOR* - Edita um cadastro existente\n"
             "*/excluir CODIGO NOME* - Exclui um cadastro específico\n"
+            "*/excluir_id NUMERO* - Exclui um cadastro pelo número da listagem\n"
             "*/limpar* - Remove todos os cadastros (com confirmação)\n"
             "*/admin_add ID* - Adiciona um novo administrador\n\n"
         )
