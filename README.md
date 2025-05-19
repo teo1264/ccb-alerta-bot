@@ -9,6 +9,7 @@ Bot do Telegram para gerenciamento de casas de oração, automatizando alertas d
 - Armazenamento em planilha Excel com colunas adequadamente dimensionadas
 - Funções administrativas protegidas
 - Interface amigável com mensagens formatadas
+- Conformidade com a Lei Geral de Proteção de Dados (LGPD)
 
 ## Requisitos
 
@@ -47,6 +48,8 @@ python bot.py
   - `cadastro.py` - Processo de cadastro
   - `admin.py` - Funções administrativas
   - `mensagens.py` - Processamento de mensagens de texto
+  - `lgpd.py` - Funções relacionadas à proteção de dados (LGPD)
+  - `error.py` - Tratamento de erros
 
 ## Comandos Disponíveis
 
@@ -55,6 +58,8 @@ python bot.py
 - `/cadastro` - Forma alternativa para cadastro manual direto
 - `/meu_id` - Mostra o ID do usuário no Telegram
 - `/ajuda` - Exibe lista de comandos disponíveis
+- `/remover` - Permite ao usuário solicitar a remoção de seus dados (LGPD)
+- `/privacidade` - Exibe a política de privacidade completa
 
 ### Comandos Administrativos
 
@@ -62,6 +67,20 @@ python bot.py
 - `/listar` - Lista todos os cadastros
 - `/limpar` - Remove todos os cadastros (com confirmação)
 - `/admin_add ID` - Adiciona um novo administrador
+- `/editar_buscar TERMO` - Busca cadastros para edição
+- `/editar CODIGO CAMPO VALOR` - Edita um cadastro existente
+- `/excluir CODIGO NOME` - Exclui um cadastro específico
+
+## Conformidade com a LGPD
+
+O CCB Alerta Bot está em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018):
+
+- Coleta apenas dados necessários (nome, função, ID do Telegram)
+- Obtém consentimento explícito antes do cadastro
+- Permite que os usuários solicitem a exclusão de seus dados
+- Fornece política de privacidade transparente e acessível
+- Mantém registros de operações para auditoria
+- Implementa medidas técnicas para proteção dos dados
 
 ## Deploy no Render.com
 
