@@ -15,6 +15,7 @@ from handlers.cadastro import registrar_handlers_cadastro
 from handlers.admin import registrar_handlers_admin
 from handlers.mensagens import registrar_handlers_mensagens
 from handlers.error import registrar_error_handler
+from handlers.lgpd import registrar_handlers_lgpd  # Adicionado import para LGPD
 
 # Configurar logging
 logging.basicConfig(
