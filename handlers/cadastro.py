@@ -46,7 +46,7 @@ async def iniciar_cadastro_etapas(update: Update, context: ContextTypes.DEFAULT_
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await update.message.reply_text(
-            " *A Paz de Deus, irmão!*\n\n"
+            "*A Paz de Deus, irmão!*\n\n"
             "Antes de prosseguir com o cadastro, informamos que este canal coleta *seu nome*, *função* e *ID do Telegram*.\n\n"
             "Esses dados são utilizados **exclusivamente para comunicação administrativa e operacional** "
             "das Casas de Oração da nossa região.\n\n"
