@@ -322,7 +322,7 @@ async def limpar_cadastros(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Verificar se o usuário é administrador
     if not verificar_admin(update.effective_user.id):
         await update.message.reply_text(
-            " *A Paz de Deus!*\n\n"
+            "*A Paz de Deus!*\n\n"
             "⚠️ *Acesso Negado*\n\n"
             "Você não tem permissão para acessar esta função.\n\n"
             "_Deus te abençoe!_ 🙏",
@@ -340,7 +340,7 @@ async def limpar_cadastros(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(
-        " *A Paz de Deus!*\n\n"
+        "*A Paz de Deus!*\n\n"
         "⚠️ *ATENÇÃO!*\n\n"
         "Você está prestes a *APAGAR TODOS OS CADASTROS*.\n"
         "Esta ação NÃO pode ser desfeita!\n\n"
@@ -357,7 +357,7 @@ async def processar_callback_admin(update: Update, context: ContextTypes.DEFAULT
     # Verificar se o usuário é administrador
     if not verificar_admin(update.effective_user.id):
         await query.edit_message_text(
-            " *A Paz de Deus!*\n\n"
+            "*A Paz de Deus!*\n\n"
             "⚠️ *Acesso Negado*\n\n"
             "Você não tem permissão para acessar esta função.\n\n"
             "_Deus te abençoe!_ 🙏",
@@ -380,7 +380,7 @@ async def processar_callback_admin(update: Update, context: ContextTypes.DEFAULT
                 df.to_excel(EXCEL_FILE, index=False)
                 
                 await query.edit_message_text(
-                    " *A Paz de Deus!*\n\n"
+                    "*A Paz de Deus!*\n\n"
                     "✅ *Todos os cadastros foram removidos!*\n\n"
                     f"Um backup foi criado como: `{backup_file}`\n\n"
                     "_Deus te abençoe!_ 🙏",
@@ -388,22 +388,22 @@ async def processar_callback_admin(update: Update, context: ContextTypes.DEFAULT
                 )
             else:
                 await query.edit_message_text(
-                    " *A Paz de Deus!*\n\n"
-                    "ℹ️ Nenhum cadastro encontrado para remover.\n\n"
+                    "*A Paz de Deus!*\n\n"
+                    "ℹ️ *Nenhum cadastro encontrado para remover.*\n\n"
                     "_Deus te abençoe!_ 🙏",
                     parse_mode='Markdown'
                 )
         except Exception as e:
             await query.edit_message_text(
-                " *A Paz de Deus!*\n\n"
-                f"❌ Erro ao limpar cadastros: {str(e)}\n\n"
+                "*A Paz de Deus!*\n\n"
+                f"❌ *Erro ao limpar cadastros: {str(e)}*\n\n"
                 "_Deus te abençoe!_ 🙏",
                 parse_mode='Markdown'
             )
     
     elif query.data == "cancelar_limpar":
         await query.edit_message_text(
-            " *A Paz de Deus!*\n\n"
+            "*A Paz de Deus!*\n\n"
             "✅ *Operação cancelada!*\n\n"
             "Nenhum cadastro foi removido.\n\n"
             "_Deus te abençoe!_ 🙏",
@@ -415,7 +415,7 @@ async def adicionar_admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE
     # Verificar se o usuário é administrador
     if not verificar_admin(update.effective_user.id):
         await update.message.reply_text(
-            " *A Paz de Deus!*\n\n"
+            "*A Paz de Deus!*\n\n"
             "⚠️ *Acesso Negado*\n\n"
             "Você não tem permissão para acessar esta função.\n\n"
             "_Deus te abençoe!_ 🙏",
@@ -427,7 +427,7 @@ async def adicionar_admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE
     args = context.args
     if not args or not args[0].isdigit():
         await update.message.reply_text(
-            " *A Paz de Deus!*\n\n"
+            "*A Paz de Deus!*\n\n"
             "❌ *Formato inválido!*\n\n"
             "Use: `/admin_add ID_DO_USUARIO`\n"
             "Exemplo: `/admin_add 123456789`\n\n"
@@ -444,8 +444,8 @@ async def adicionar_admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     if not sucesso and status == "já é admin":
         await update.message.reply_text(
-            " *A Paz de Deus!*\n\n"
-            "ℹ️ Este usuário já é um administrador.\n\n"
+            "*A Paz de Deus!*\n\n"
+            "ℹ️ *Este usuário já é um administrador.*\n\n"
             "_Deus te abençoe!_ 🙏",
             parse_mode='Markdown'
         )
@@ -453,15 +453,15 @@ async def adicionar_admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     if sucesso:
         await update.message.reply_text(
-            " *A Paz de Deus!*\n\n"
-            f"✅ Administrador adicionado com sucesso: `{novo_admin_id}`\n\n"
+            "*A Paz de Deus!*\n\n"
+            f"✅ *Administrador adicionado com sucesso: `{novo_admin_id}`*\n\n"
             "_Deus te abençoe!_ 🙏",
             parse_mode='Markdown'
         )
     else:
         await update.message.reply_text(
-            " *A Paz de Deus!*\n\n"
-            f"❌ Erro ao adicionar administrador: {status}\n\n"
+            "*A Paz de Deus!*\n\n"
+            f"❌ *Erro ao adicionar administrador: {status}*\n\n"
             "_Deus te abençoe!_ 🙏",
             parse_mode='Markdown'
         )
@@ -503,7 +503,7 @@ async def editar_buscar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not os.path.exists(EXCEL_FILE):
             await update.message.reply_text(
                 "A Paz de Deus!\n\n"
-                "❌ Nenhum arquivo de cadastro encontrado.\n\n"
+                "❌ *Nenhum arquivo de cadastro encontrado.*\n\n"
                 "_Deus te abençoe!_ 🙏",
                 parse_mode='Markdown'
             )
@@ -514,7 +514,7 @@ async def editar_buscar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if df.empty:
             await update.message.reply_text(
                 "A Paz de Deus!\n\n"
-                "❌ A planilha está vazia, sem cadastros para buscar.\n\n"
+                "❌ *A planilha está vazia, sem cadastros para buscar.*\n\n"
                 "_Deus te abençoe!_ 🙏",
                 parse_mode='Markdown'
             )
@@ -530,7 +530,7 @@ async def editar_buscar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if len(resultados) == 0:
             await update.message.reply_text(
                 "A Paz de Deus!\n\n"
-                f"❌ Nenhum cadastro encontrado com o termo '{termo_busca}'.\n\n"
+                f"❌ *Nenhum cadastro encontrado com o termo '{termo_busca}'.*\n\n"
                 "_Deus te abençoe!_ 🙏",
                 parse_mode='Markdown'
             )
@@ -563,7 +563,7 @@ async def editar_buscar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(
             "A Santa Paz de Deus!\n\n"
-            f"❌ Erro ao buscar cadastros: {str(e)}\n\n"
+            f"❌ *Erro ao buscar cadastros: {str(e)}*\n\n"
             "_Deus te abençoe!_ 🙏",
             parse_mode='Markdown'
         )
@@ -612,7 +612,7 @@ async def editar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not os.path.exists(EXCEL_FILE):
             await update.message.reply_text(
                 "A Paz de Deus!\n\n"
-                "❌ Nenhum arquivo de cadastro encontrado.\n\n"
+                "❌ *Nenhum arquivo de cadastro encontrado.*\n\n"
                 "_Deus te abençoe!_ 🙏",
                 parse_mode='Markdown'
             )
@@ -625,7 +625,7 @@ async def editar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not filtro.any():
             await update.message.reply_text(
                 "A Paz de Deus!\n\n"
-                f"❌ Código `{codigo}` não encontrado na planilha.\n\n"
+                f"❌ *Código `{codigo}` não encontrado na planilha.*\n\n"
                 "Use o comando `/editar_buscar` para encontrar o código correto.\n\n"
                 "_Deus te abençoe!_ 🙏",
                 parse_mode='Markdown'
@@ -637,7 +637,7 @@ async def editar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if campo not in campos_permitidos:
             await update.message.reply_text(
                 "A Paz de Deus!\n\n"
-                f"❌ Campo `{campo}` não permitido para edição.\n"
+                f"❌ *Campo `{campo}` não permitido para edição.*\n"
                 f"Campos permitidos: `{', '.join(campos_permitidos)}`\n\n"
                 "_Deus te abençoe!_ 🙏",
                 parse_mode='Markdown'
@@ -648,7 +648,7 @@ async def editar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if campo not in df.columns:
             await update.message.reply_text(
                 "A Paz de Deus!\n\n"
-                f"❌ Campo `{campo}` não existe na planilha.\n"
+                f"❌ *Campo `{campo}` não existe na planilha.*\n"
                 f"Campos disponíveis: `{', '.join(campos_permitidos)}`\n\n"
                 "_Deus te abençoe!_ 🙏",
                 parse_mode='Markdown'
@@ -695,7 +695,7 @@ async def editar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(
             "A Santa Paz de Deus!\n\n"
-            f"❌ Erro ao atualizar cadastro: {str(e)}\n\n"
+            f"❌ *Erro ao atualizar cadastro: {str(e)}*\n\n"
             "_Deus te abençoe!_ 🙏",
             parse_mode='Markdown'
         )
@@ -738,7 +738,7 @@ async def excluir_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if 'indices_cadastros' not in context.user_data or not context.user_data['indices_cadastros']:
         await update.message.reply_text(
             "A Paz de Deus!\n\n"
-            "❓ Por favor, primeiro use `/listar` ou `/buscar` para ver os cadastros disponíveis.\n\n"
+            "❓ *Por favor, primeiro use `/listar` ou `/buscar` para ver os cadastros disponíveis.*\n\n"
             "_Deus te abençoe!_ 🙏",
             parse_mode='Markdown'
         )
@@ -749,7 +749,7 @@ async def excluir_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if indice not in indices_cadastros:
         await update.message.reply_text(
             "A Paz de Deus!\n\n"
-            f"❌ Não foi encontrado cadastro com o índice #{indice}.\n\n"
+            f"❌ *Não foi encontrado cadastro com o índice #{indice}.*\n\n"
             "Use `/listar` ou `/buscar` para ver os números de índice corretos.\n\n"
             "_Deus te abençoe!_ 🙏",
             parse_mode='Markdown'
@@ -829,7 +829,7 @@ async def processar_callback_exclusao(update: Update, context: ContextTypes.DEFA
         if 'cadastro_exclusao' not in context.user_data:
             await query.edit_message_text(
                 "A Paz de Deus!\n\n"
-                "❌ Não foi possível excluir o cadastro. Dados não encontrados.\n\n"
+                "❌ *Não foi possível excluir o cadastro. Dados não encontrados.*\n\n"
                 "Por favor, tente novamente.\n\n"
                 "_Deus te abençoe!_ 🙏",
                 parse_mode='Markdown'
