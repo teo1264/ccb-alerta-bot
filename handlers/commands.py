@@ -119,12 +119,12 @@ async def mostrar_ajuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
     mensagem_ajuda = (
         "*A Paz de Deus!*\n\n"
         "📋 *Lista de Comandos Disponíveis:*\n\n"
-        "*\\/start* - Exibe a mensagem de boas-vindas\n"
-        "*\\/cadastrar* - Inicia o processo de cadastro passo a passo\n"
-        "*\\/meu_id* - Mostra seu ID do Telegram\n"
-        "*\\/remover* - Solicita a exclusão dos seus dados (LGPD)\n"
-        "*\\/privacidade* - Exibe a política de privacidade completa\n"
-        "*\\/ajuda* - Exibe esta lista de comandos\n\n"
+        "*\\/START* - Exibe a mensagem de boas-vindas\n"
+        "*\\/CADASTRAR* - Inicia o processo de cadastro passo a passo\n"
+        "*\\/MEU_ID* - Mostra seu ID do Telegram\n"
+        "*\\/REMOVER* - Solicita a exclusão dos seus dados (LGPD)\n"
+        "*\\/PRIVACIDADE* - Exibe a política de privacidade completa\n"
+        "*\\/AJUDA* - Exibe esta lista de comandos\n\n"
     )
     
     # Seção de LGPD
