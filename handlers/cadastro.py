@@ -35,6 +35,35 @@ SELECIONAR_IGREJA, SELECIONAR_FUNCAO = range(4, 6)
 
 async def iniciar_cadastro_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Inicia o processo de cadastro passo a passo"""
+    # Verificar se o usuário aceitou a LGPD
+    usuario_aceitou_lgpd = context.user_data.get('aceitou_lgpd', False)
+    
+    if not usuario_aceitou_lgpd:
+        # Exibir mensagem de LGPD com botão de aceitação
+        keyboard = [
+            [InlineKeyboardButton("✅ Aceito os termos", callback_data="aceitar_lgpd_cadastro")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(
+            " *A Paz de Deus, irmão!*\n\n"
+            "Antes de prosseguir com o cadastro, informamos que este canal coleta *seu nome*, *função* e *ID do Telegram*.\n\n"
+            "Esses dados são utilizados **exclusivamente para comunicação administrativa e operacional** "
+            "das Casas de Oração da nossa região.\n\n"
+            "Eles **não serão compartilhados com terceiros** e são tratados conforme a "
+            "**Lei Geral de Proteção de Dados (LGPD – Lei nº 13.709/2018)**.\n\n"
+            "Ao continuar, você autoriza o uso dessas informações para envio de mensagens "
+            "relacionadas à sua função ou responsabilidade.\n\n"
+            "Você pode solicitar a exclusão dos seus dados a qualquer momento usando o comando:\n"
+            "*/remover*\n\n"
+            "Para ver a política de privacidade completa, use o comando */privacidade*\n\n"
+            "Se estiver de acordo, clique no botão abaixo para continuar com o cadastro.",
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+        return ConversationHandler.END
+    
+    # Se já aceitou os termos, continuar com o cadastro normal
     # Limpar qualquer dado pendente do contexto
     if 'cadastro_temp' in context.user_data:
         del context.user_data['cadastro_temp']
@@ -44,7 +73,7 @@ async def iniciar_cadastro_etapas(update: Update, context: ContextTypes.DEFAULT_
     logger.info(f"Iniciando cadastro para usuário {update.effective_user.id}")
     await mostrar_menu_igrejas(update, context)
     return SELECIONAR_IGREJA
-
+    
 async def mostrar_menu_igrejas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Mostra o menu de seleção de igrejas paginado"""
     # Agrupar igrejas em páginas
@@ -496,6 +525,25 @@ async def cadastro_comando(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Iniciar automaticamente o fluxo de cadastro em etapas
     return await iniciar_cadastro_etapas(update, context)
 
+async def processar_aceite_lgpd_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Processa o aceite dos termos de LGPD para cadastro"""
+    query = update.callback_query
+    await query.answer()
+    
+    if query.data == "aceitar_lgpd_cadastro":
+        # Marcar que o usuário aceitou os termos
+        context.user_data['aceitou_lgpd'] = True
+        
+        # Editar a mensagem para confirmar o aceite
+        await query.edit_message_text(
+            " *A Santa Paz de Deus!*\n\n"
+            "✅ *Agradecemos por aceitar os termos!*\n\n"
+            "Agora podemos prosseguir com seu cadastro.\n"
+            "Por favor, use o comando /cadastrar novamente para iniciar o processo.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        
 def registrar_handlers_cadastro(application):
     """Registra handlers relacionados ao cadastro"""
     # Handler para cadastro manual via comando
@@ -533,4 +581,9 @@ def registrar_handlers_cadastro(application):
         name="cadastro_conversation",
         persistent=False
     )
+    # Callback handler para aceite de LGPD no cadastro
+application.add_handler(CallbackQueryHandler(
+    processar_aceite_lgpd_cadastro, 
+    pattern='^aceitar_lgpd_cadastro$'
+))
     application.add_handler(cadastro_handler)
