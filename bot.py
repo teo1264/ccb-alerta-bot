@@ -66,6 +66,7 @@ def main():
         registrar_handlers_cadastro(application)
         registrar_handlers_admin(application)
         registrar_handlers_mensagens(application)
+        registrar_handlers_lgpd(application)  # Registrar handlers de LGPD
         registrar_error_handler(application)
         
         # Iniciar o bot com configurações ajustadas
