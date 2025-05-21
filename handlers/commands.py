@@ -8,8 +8,8 @@ Handlers para comandos básicos do CCB Alerta Bot
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import CommandHandler, ContextTypes, CallbackQueryHandler
 
-# Adicionar esta importação
-from utils import verificar_admin
+# Usar a importação direta do módulo database para evitar problemas
+from utils.database import verificar_admin
 
 async def mensagem_boas_vindas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Responde a qualquer mensagem com uma saudação e instruções"""
