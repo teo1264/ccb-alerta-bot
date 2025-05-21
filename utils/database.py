@@ -117,6 +117,45 @@ def init_database():
         logger.error(f"Erro ao inicializar banco de dados: {e}")
         return False
 
+# Funções para fazer backup do banco
+def fazer_backup_banco():
+    """
+    Cria um backup do banco de dados
+    
+    Returns:
+        str: Caminho do arquivo de backup ou None se falhar
+    """
+    try:
+        db_path = get_db_path()
+        if not os.path.exists(db_path):
+            logger.warning(f"Banco de dados não encontrado para backup: {db_path}")
+            return None
+            
+        # Criar nome para backup
+        fuso_horario = pytz.timezone('America/Sao_Paulo')
+        agora = datetime.now(fuso_horario)
+        timestamp = agora.strftime("%Y%m%d%H%M%S")
+        
+        # Diretório de backup
+        RENDER_DISK_PATH = os.environ.get("RENDER_DISK_PATH", "/opt/render/project/disk")
+        DATA_DIR = os.path.join(RENDER_DISK_PATH, "shared_data")
+        backup_dir = os.path.join(DATA_DIR, "backup")
+        os.makedirs(backup_dir, exist_ok=True)
+        
+        # Nome do arquivo
+        backup_file = os.path.join(backup_dir, f"backup_{timestamp}.db")
+        
+        # Criar cópia do arquivo
+        import shutil
+        shutil.copy2(db_path, backup_file)
+        
+        logger.info(f"Backup do banco de dados criado: {backup_file}")
+        return backup_file
+        
+    except Exception as e:
+        logger.error(f"Erro ao fazer backup: {e}")
+        return None
+
 # Funções para gerenciar responsáveis
 
 def salvar_responsavel(codigo_casa, nome, funcao, user_id, username):
@@ -215,6 +254,62 @@ def verificar_cadastro_existente(codigo, nome, funcao):
     except Exception as e:
         logger.error(f"Erro ao verificar cadastro existente: {e}")
         return False
+
+def obter_cadastros_por_user_id(user_id):
+    """
+    Obtem todos os cadastros de um usuário pelo ID
+    
+    Args:
+        user_id (int): ID do usuário no Telegram
+        
+    Returns:
+        list: Lista de cadastros do usuário
+    """
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT * FROM responsaveis WHERE user_id = ? ORDER BY codigo_casa, nome",
+                (user_id,)
+            )
+            
+            # Converter resultado para lista de dicionários
+            resultados = []
+            for row in cursor.fetchall():
+                resultados.append(dict(row))
+            
+            return resultados
+            
+    except Exception as e:
+        logger.error(f"Erro ao obter cadastros por user_id: {e}")
+        return []
+
+def remover_cadastros_por_user_id(user_id):
+    """
+    Remove todos os cadastros de um usuário pelo ID
+    
+    Args:
+        user_id (int): ID do usuário no Telegram
+        
+    Returns:
+        int: Número de cadastros removidos
+    """
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "DELETE FROM responsaveis WHERE user_id = ?",
+                (user_id,)
+            )
+            
+            removidos = cursor.rowcount
+            conn.commit()
+            
+            return removidos
+            
+    except Exception as e:
+        logger.error(f"Erro ao remover cadastros por user_id: {e}")
+        return 0
 
 def buscar_responsaveis_por_codigo(codigo_casa):
     """
@@ -406,6 +501,7 @@ def editar_responsavel(id_registro, campos):
     except Exception as e:
         logger.error(f"Erro ao editar responsável: {e}")
         return False
+
 
 # Funções para gerenciar administradores
 
@@ -739,3 +835,4 @@ def inicializar_admins_padrao(admin_ids):
     except Exception as e:
         logger.error(f"Erro ao inicializar admins padrão: {e}")
         return 0
+
