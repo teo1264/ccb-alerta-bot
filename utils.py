@@ -11,19 +11,23 @@ from datetime import datetime
 import pytz
 import shutil
 import logging
-from config import DATA_DIR
 
-# Importar funções do módulo de banco de dados
+# Configurar logger
+logger = logging.getLogger("CCB-Alerta-Bot.utils")
+
+# Importar funções do módulo database.py
 from utils.database import (
     verificar_admin, adicionar_admin, 
     verificar_cadastro_existente as db_verificar_cadastro_existente,
     salvar_responsavel, buscar_responsavel_por_id,
     buscar_responsaveis_por_codigo, listar_todos_responsaveis,
-    remover_responsavel, remover_responsavel_especifico
+    remover_responsavel, remover_responsavel_especifico,
+    fazer_backup_banco, get_db_path
 )
 
-# Configurar logger
-logger = logging.getLogger("CCB-Alerta-Bot.utils")
+# Importar DATA_DIR aqui agora é seguro porque
+# reorganizamos as importações em config.py
+from config import DATA_DIR, TEMP_DIR
 
 # Funções adaptadas para usar o banco de dados
 
@@ -73,34 +77,7 @@ def fazer_backup_planilha():
     Returns:
         str: Nome do arquivo de backup
     """
-    try:
-        from utils.database import get_db_path
-        db_path = get_db_path()
-        
-        if not os.path.exists(db_path):
-            logger.warning(f"Banco de dados não encontrado para backup: {db_path}")
-            return None
-            
-        # Criar nome para backup
-        fuso_horario = pytz.timezone('America/Sao_Paulo')
-        agora = datetime.now(fuso_horario)
-        timestamp = agora.strftime("%Y%m%d%H%M%S")
-        
-        # Diretório de backup
-        backup_dir = os.path.join(DATA_DIR, "backup")
-        os.makedirs(backup_dir, exist_ok=True)
-        
-        # Nome do arquivo
-        backup_file = os.path.join(backup_dir, f"alertas_bot_{timestamp}.db")
-        
-        # Criar cópia física do arquivo
-        shutil.copy2(db_path, backup_file)
-        
-        logger.info(f"Backup do banco de dados criado: {backup_file}")
-        return backup_file
-    except Exception as e:
-        logger.error(f"Erro ao fazer backup: {e}")
-        return None
+    return fazer_backup_banco()
 
 def verificar_cadastro_existente(codigo, nome, funcao):
     """
@@ -229,7 +206,6 @@ def criar_pasta_temporaria():
     try:
         # Criar pasta temporária no diretório compartilhado
         import tempfile
-        from config import TEMP_DIR
         
         # Garantir que o diretório existe
         os.makedirs(TEMP_DIR, exist_ok=True)
