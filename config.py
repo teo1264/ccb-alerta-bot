@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Configurações globais para o CCB Alerta Bot
+Adaptado para usar SQLite e disco persistente no Render
 """
 import os
 import logging
@@ -19,6 +20,9 @@ RENDER_DISK_PATH = os.environ.get("RENDER_DISK_PATH", "/opt/render/project/disk"
 # Diretório de dados compartilhado
 DATA_DIR = os.path.join(RENDER_DISK_PATH, "shared_data")
 
+# Caminho para o banco de dados SQLite
+DATABASE_PATH = os.path.join(DATA_DIR, "ccb_alerta_bot.db")
+
 def verificar_diretorios():
     """Garante que os diretórios necessários existam"""
     # Garantir que o diretório de dados existe
@@ -28,6 +32,9 @@ def verificar_diretorios():
     os.makedirs(os.path.join(DATA_DIR, "logs"), exist_ok=True)
     os.makedirs(os.path.join(DATA_DIR, "temp"), exist_ok=True)
     os.makedirs(os.path.join(DATA_DIR, "backup"), exist_ok=True)
+    
+    logger.info(f"Diretórios verificados e criados em: {DATA_DIR}")
+    logger.info(f"Banco de dados será armazenado em: {DATABASE_PATH}")
 
 # IDs de administradores (lista inicial)
 ADMIN_IDS = [5876346562]  # Adicione aqui os IDs dos administradores
@@ -37,21 +44,29 @@ CODIGO, NOME, FUNCAO, CONFIRMAR = range(4)
 
 def inicializar_sistema():
     """Inicializa todos os componentes do sistema"""
-    verificar_diretorios()  # Garantir que os diretórios existam antes de inicializar
+    # Garantir que os diretórios existam antes de inicializar
+    verificar_diretorios()  
     
-    # Inicializar banco de dados
-    logger.info("Inicializando banco de dados...")
+    # Inicializar banco de dados SQLite
+    logger.info("Inicializando banco de dados SQLite...")
     if init_database():
-        logger.info("Banco de dados inicializado com sucesso")
+        logger.info(f"Banco de dados inicializado com sucesso em {DATABASE_PATH}")
     else:
-        logger.error("Falha ao inicializar banco de dados")
+        logger.error(f"Falha ao inicializar banco de dados em {DATABASE_PATH}")
     
     # Inicializar administradores padrão
     logger.info("Configurando administradores...")
-    count = inicializar_admins_padrao(ADMIN_IDS)
-    logger.info(f"{count} administradores padrão configurados")
+    try:
+        count = inicializar_admins_padrao(ADMIN_IDS)
+        logger.info(f"{count} administradores padrão configurados")
     
-    # Carregar lista atual de administradores
-    global ADMIN_IDS
-    ADMIN_IDS = listar_admins()
-    logger.info(f"Total de administradores: {len(ADMIN_IDS)}")
+        # Carregar lista atual de administradores
+        global ADMIN_IDS
+        admins = listar_admins()
+        if admins:
+            ADMIN_IDS = admins
+            logger.info(f"Total de administradores: {len(ADMIN_IDS)}")
+        else:
+            logger.warning("Não foi possível carregar administradores do banco de dados")
+    except Exception as e:
+        logger.error(f"Erro ao configurar administradores: {str(e)}")
