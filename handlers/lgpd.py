@@ -3,17 +3,20 @@
 
 """
 Handlers relacionados à LGPD para o CCB Alerta Bot
+Adaptado para usar SQLite para armazenamento persistente
 """
 
-import os
-import pandas as pd
 import logging
 from datetime import datetime
 import pytz
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, ContextTypes, CallbackQueryHandler
 
-from config import EXCEL_FILE
+from utils.database import (
+    obter_cadastros_por_user_id,
+    remover_cadastros_por_user_id,
+    fazer_backup_banco
+)
 
 # Configurar logger
 logger = logging.getLogger(__name__)
@@ -23,24 +26,11 @@ async def remover_dados(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     logger.info(f"Solicitação de remoção de dados do usuário ID: {user_id}")
     
-    # Verificar se o arquivo existe
-    if not os.path.exists(EXCEL_FILE):
-        await update.message.reply_text(
-            "*A Santa Paz de Deus!*\n\n"
-            "❓ *Não encontramos nenhum cadastro em nosso sistema.*\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
-        )
-        return
-        
     try:
-        # Carregar a planilha
-        df = pd.read_excel(EXCEL_FILE)
+        # Obter cadastros do usuário do banco de dados
+        cadastros = obter_cadastros_por_user_id(user_id)
         
-        # Verificar se o usuário tem cadastro
-        filtro = df['User_ID'] == user_id
-        
-        if not filtro.any():
+        if not cadastros or len(cadastros) == 0:
             await update.message.reply_text(
                 "*A Santa Paz de Deus!*\n\n"
                 "❓ *Não encontramos nenhum cadastro associado ao seu ID em nosso sistema.*\n\n"
@@ -49,19 +39,16 @@ async def remover_dados(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
             
-        # Encontrar todos os cadastros do usuário
-        cadastros = df[filtro]
-        
         # Criar mensagem com os cadastros encontrados para confirmação
         mensagem = (
             "*A Santa Paz de Deus!*\n\n"
             "🔍 *Encontramos os seguintes cadastros associados ao seu ID:*\n\n"
         )
         
-        for i, (_, row) in enumerate(cadastros.iterrows(), 1):
+        for i, cadastro in enumerate(cadastros, 1):
             mensagem += (
-                f"*{i}. {row['Codigo_Casa']} - {row['Nome']}*\n"
-                f"   *Função:* {row['Funcao']}\n\n"
+                f"*{i}. {cadastro['codigo_casa']} - {cadastro['nome']}*\n"
+                f"   *Função:* {cadastro['funcao']}\n\n"
             )
             
         mensagem += (
@@ -117,39 +104,31 @@ async def processar_callback_remocao(update: Update, context: ContextTypes.DEFAU
     elif query.data == "confirmar_remocao":
         logger.info(f"Processando remoção de dados do usuário ID {user_id}")
         try:
-            # Carregar a planilha
-            df = pd.read_excel(EXCEL_FILE)
+            # Obter cadastros do usuário para registro em log
+            cadastros = obter_cadastros_por_user_id(user_id)
+            total_cadastros = len(cadastros)
+            
+            # Registrar dados sendo removidos (para log)
+            for cadastro in cadastros:
+                logger.info(f"Removendo cadastro: {cadastro['codigo_casa']} - {cadastro['nome']} ({cadastro['funcao']})")
             
             # Fazer backup antes da remoção
-            from utils import fazer_backup_planilha
-            backup_file = fazer_backup_planilha()
+            backup_file = fazer_backup_banco()
             logger.info(f"Backup criado antes da remoção: {backup_file}")
             
             # Remover os dados do usuário
-            filtro = df['User_ID'] == user_id
-            total_removidos = filtro.sum()
-            
-            # Registrar dados sendo removidos (para log)
-            cadastros_removidos = df[filtro]
-            for _, row in cadastros_removidos.iterrows():
-                logger.info(f"Removendo cadastro: {row['Codigo_Casa']} - {row['Nome']} ({row['Funcao']})")
-            
-            # Criar novo DataFrame sem os dados do usuário
-            df_atualizado = df[~filtro]
-            
-            # Salvar a planilha atualizada
-            df_atualizado.to_excel(EXCEL_FILE, index=False)
+            removidos = remover_cadastros_por_user_id(user_id)
             
             # Limpar indicador de aceite da LGPD
             if 'aceitou_lgpd' in context.user_data:
                 del context.user_data['aceitou_lgpd']
             
-            logger.info(f"Remoção concluída: {total_removidos} cadastros removidos para o usuário ID {user_id}")
+            logger.info(f"Remoção concluída: {removidos} cadastros removidos para o usuário ID {user_id}")
             
             await query.edit_message_text(
                 "*A Santa Paz de Deus!*\n\n"
                 "✅ *Seus dados foram removidos com sucesso!*\n\n"
-                f"*Total de {total_removidos} cadastros removidos.*\n\n"
+                f"*Total de {total_cadastros} cadastros removidos.*\n\n"
                 "*Você não receberá mais alertas ou comunicados relativos às casas de oração.*\n\n"
                 "*Caso deseje se cadastrar novamente no futuro, utilize o comando /cadastrar.*\n\n"
                 "_Deus te abençoe!_ 🙏",
