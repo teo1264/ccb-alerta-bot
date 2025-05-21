@@ -50,7 +50,7 @@ def extrair_dados_cadastro(texto):
         
     Returns:
         tuple: (codigo, nome, funcao) ou (None, None, None) se inválido
-   """
+    """
     if not verificar_formato_cadastro(texto):
         return None, None, None
     
@@ -164,4 +164,155 @@ def buscar_todos_usuarios():
     Returns:
         list: Lista de dicionários com dados dos usuários
     """
-    return listar_todos_responsaveis()    
+    return listar_todos_responsaveis()
+
+def atualizar_cadastro(user_id, dados_novos):
+    """
+    Atualiza os dados de um cadastro existente
+    
+    Args:
+        user_id (int): ID do usuário no Telegram
+        dados_novos (dict): Dados novos a serem atualizados
+        
+    Returns:
+        bool: True se atualizado com sucesso, False caso contrário
+    """
+    try:
+        # Buscar registro atual
+        responsavel = buscar_responsavel_por_id(user_id)
+        if not responsavel:
+            logger.warning(f"Usuário não encontrado para atualização: {user_id}")
+            return False
+        
+        # Obter ID do registro
+        id_registro = responsavel['id']
+        
+        # Atualizar data de modificação
+        from datetime import datetime
+        import pytz
+        fuso_horario = pytz.timezone('America/Sao_Paulo')
+        agora = datetime.now(fuso_horario).strftime("%d/%m/%Y %H:%M:%S")
+        dados_novos['ultima_atualizacao'] = agora
+        
+        # Atualizar registro usando a função do módulo database.py
+        from utils.database import editar_responsavel
+        return editar_responsavel(id_registro, dados_novos)
+        
+    except Exception as e:
+        logger.error(f"Erro ao atualizar cadastro: {e}")
+        return False
+
+def remover_cadastro(user_id):
+    """
+    Remove um cadastro da planilha
+    
+    Args:
+        user_id (int): ID do usuário no Telegram
+        
+    Returns:
+        bool: True se removido com sucesso, False caso contrário
+    """
+    try:
+        sucesso, _ = remover_responsavel(user_id)
+        return sucesso
+    except Exception as e:
+        logger.error(f"Erro ao remover cadastro: {e}")
+        return False
+
+def criar_pasta_temporaria():
+    """
+    Cria uma pasta temporária para armazenar arquivos
+    
+    Returns:
+        str: Caminho da pasta temporária
+    """
+    try:
+        # Criar pasta temporária no diretório compartilhado
+        import tempfile
+        from config import TEMP_DIR
+        
+        # Garantir que o diretório existe
+        os.makedirs(TEMP_DIR, exist_ok=True)
+        
+        # Criar pasta temporária dentro do diretório compartilhado
+        pasta_temp = tempfile.mkdtemp(dir=TEMP_DIR, prefix="ccb_alerta_")
+        logger.info(f"Pasta temporária criada: {pasta_temp}")
+        return pasta_temp
+    except Exception as e:
+        logger.error(f"Erro ao criar pasta temporária: {e}")
+        return None
+
+def remover_pasta_temporaria(pasta_temp):
+    """
+    Remove uma pasta temporária e seu conteúdo
+    
+    Args:
+        pasta_temp (str): Caminho da pasta temporária
+        
+    Returns:
+        bool: True se removida com sucesso, False caso contrário
+    """
+    try:
+        # Verificar se existe
+        if not os.path.exists(pasta_temp):
+            return True
+            
+        # Remover pasta e conteúdo
+        shutil.rmtree(pasta_temp)
+        logger.info(f"Pasta temporária removida: {pasta_temp}")
+        return True
+    except Exception as e:
+        logger.error(f"Erro ao remover pasta temporária: {e}")
+        return False
+
+def registrar_consentimento_lgpd(user_id, detalhes=None):
+    """
+    Registra o consentimento do usuário para LGPD
+    
+    Args:
+        user_id (int): ID do usuário
+        detalhes (str, optional): Detalhes adicionais
+        
+    Returns:
+        bool: True se registrado com sucesso, False caso contrário
+    """
+    try:
+        from utils.database import registrar_consentimento_lgpd as db_registrar_consentimento
+        return db_registrar_consentimento(user_id, detalhes=detalhes)
+    except Exception as e:
+        logger.error(f"Erro ao registrar consentimento LGPD: {e}")
+        return False
+
+def verificar_consentimento_lgpd(user_id):
+    """
+    Verifica se o usuário deu consentimento LGPD
+    
+    Args:
+        user_id (int): ID do usuário
+        
+    Returns:
+        bool: True se consentiu, False caso contrário
+    """
+    try:
+        from utils.database import verificar_consentimento_lgpd as db_verificar_consentimento
+        return db_verificar_consentimento(user_id)
+    except Exception as e:
+        logger.error(f"Erro ao verificar consentimento LGPD: {e}")
+        return False
+
+def remover_consentimento_lgpd(user_id):
+    """
+    Remove o registro de consentimento LGPD do usuário
+    
+    Args:
+        user_id (int): ID do usuário
+        
+    Returns:
+        bool: True se removido com sucesso, False caso contrário
+    """
+    try:
+        from utils.database import remover_consentimento_lgpd as db_remover_consentimento
+        return db_remover_consentimento(user_id)
+    except Exception as e:
+        logger.error(f"Erro ao remover consentimento LGPD: {e}")
+        return False
