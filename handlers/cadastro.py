@@ -3,6 +3,7 @@
 
 """
 Handlers para o processo de cadastro do CCB Alerta Bot
+Adaptado para usar SQLite para armazenamento persistente
 """
 
 import re
@@ -17,14 +18,22 @@ from telegram.ext import (
 from config import CODIGO, NOME, FUNCAO, CONFIRMAR
 try:
     # Primeiro tenta importar diretamente (funciona se o arquivo estiver no PYTHONPATH)
-    from utils import salvar_cadastro, verificar_cadastro_existente, extrair_dados_cadastro
+    from utils.database import (
+        verificar_cadastro_existente,
+        inserir_cadastro,
+        obter_cadastro_por_user_id
+    )
 except ImportError:
     # Se falhar, tenta encontrar o módulo no diretório raiz
     import sys
     import os
     # Adicionar diretório pai ao path
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-    from utils import salvar_cadastro, verificar_cadastro_existente, extrair_dados_cadastro
+    from utils.database import (
+        verificar_cadastro_existente, 
+        inserir_cadastro,
+        obter_cadastro_por_user_id
+    )
 from handlers.data import IGREJAS, FUNCOES, agrupar_igrejas, agrupar_funcoes, obter_igreja_por_codigo
 
 # Logger
@@ -434,6 +443,8 @@ async def confirmar_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     nome = context.user_data['cadastro_temp'].get('nome', '')
     funcao = context.user_data['cadastro_temp'].get('funcao', '')
     nome_igreja = context.user_data['cadastro_temp'].get('nome_igreja', '')
+    user_id = update.effective_user.id
+    username = update.effective_user.username or ""
     
     # Verificar se já existe cadastro exatamente igual
     if verificar_cadastro_existente(codigo, nome, funcao):
@@ -450,12 +461,29 @@ async def confirmar_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
             del context.user_data['cadastro_temp']
         return ConversationHandler.END
     
-    # Salvar cadastro
-    sucesso, status = salvar_cadastro(codigo, nome, funcao, 
-                                     update.effective_user.id, 
-                                     update.effective_user.username or "")
-    
-    if not sucesso:
+    # Salvar cadastro usando a nova função SQLite
+    try:
+        sucesso = inserir_cadastro(codigo, nome, funcao, user_id, username)
+        
+        if not sucesso:
+            raise Exception("Falha ao inserir cadastro no banco de dados")
+        
+        # Sucesso
+        await query.edit_message_text(
+            f" *Projeto Débito Automático*\n\n"
+            f"✅ *Cadastro recebido com sucesso:*\n\n"
+            f"📍 *Código:* `{codigo}`\n"
+            f"🏢 *Casa:* `{nome_igreja}`\n"
+            f"👤 *Nome:* `{nome}`\n"
+            f"🔧 *Função:* `{funcao}`\n\n"
+            f"🗂️ Estamos em *fase de cadastro* dos irmãos responsáveis pelo acompanhamento das Contas de Consumo.\n"
+            f"📢 Assim que esta fase for concluída, os *alertas automáticos de consumo* começarão a ser enviados.\n\n"
+            f"_Deus te abençoe!_ 🙌",
+            parse_mode='Markdown'
+        )
+        
+    except Exception as e:
+        logger.error(f"Erro ao salvar cadastro: {str(e)}")
         await query.edit_message_text(
             " *A Paz de Deus!*\n\n"
             "❌ *Houve um problema ao processar seu cadastro!*\n\n"
@@ -463,24 +491,6 @@ async def confirmar_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "_Deus te abençoe!_ 🙏",
             parse_mode='Markdown'
         )
-        # Limpar dados do contexto
-        if 'cadastro_temp' in context.user_data:
-            del context.user_data['cadastro_temp']
-        return ConversationHandler.END
-    
-    # Sucesso
-    await query.edit_message_text(
-        f" *Projeto Débito Automático*\n\n"
-        f"✅ *Cadastro recebido com sucesso:*\n\n"
-        f"📍 *Código:* `{codigo}`\n"
-        f"🏢 *Casa:* `{nome_igreja}`\n"
-        f"👤 *Nome:* `{nome}`\n"
-        f"🔧 *Função:* `{funcao}`\n\n"
-        f"🗂️ Estamos em *fase de cadastro* dos irmãos responsáveis pelo acompanhamento das Contas de Consumo.\n"
-        f"📢 Assim que esta fase for concluída, os *alertas automáticos de consumo* começarão a ser enviados.\n\n"
-        f"_Deus te abençoe!_ 🙌",
-        parse_mode='Markdown'
-    )
     
     # Limpar dados do contexto
     if 'cadastro_temp' in context.user_data:
