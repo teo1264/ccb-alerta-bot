@@ -6,7 +6,6 @@ Adaptado para usar SQLite e disco persistente no Render
 """
 import os
 import logging
-from utils.database import init_database, verificar_admin, listar_admins, inicializar_admins_padrao
 
 # Token do Bot (coloque aqui seu token)
 TOKEN = "7773179413:AAHqJp-NBPPs6YrSV1kB5-q4vkV3tjDFyy4"
@@ -26,6 +25,9 @@ DATABASE_PATH = os.path.join(DATA_DIR, "ccb_alerta_bot.db")
 # IDs de administradores (lista inicial)
 ADMIN_IDS = [5876346562]  # Adicione aqui os IDs dos administradores
 
+# Diretório temporário
+TEMP_DIR = os.path.join(DATA_DIR, "temp")
+
 def verificar_diretorios():
     """Garante que os diretórios necessários existam"""
     # Garantir que o diretório de dados existe
@@ -33,7 +35,7 @@ def verificar_diretorios():
     
     # Criar subdiretórios necessários
     os.makedirs(os.path.join(DATA_DIR, "logs"), exist_ok=True)
-    os.makedirs(os.path.join(DATA_DIR, "temp"), exist_ok=True)
+    os.makedirs(TEMP_DIR, exist_ok=True)
     os.makedirs(os.path.join(DATA_DIR, "backup"), exist_ok=True)
     
     logger.info(f"Diretórios verificados e criados em: {DATA_DIR}")
@@ -48,6 +50,9 @@ def inicializar_sistema():
     
     # Garantir que os diretórios existam antes de inicializar
     verificar_diretorios()  
+    
+    # Importamos aqui para evitar importação circular
+    from utils.database import init_database, listar_admins, inicializar_admins_padrao
     
     # Inicializar banco de dados SQLite
     logger.info("Inicializando banco de dados SQLite...")
