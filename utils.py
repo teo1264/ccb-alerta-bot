@@ -6,53 +6,26 @@ Funções utilitárias para o CCB Alerta Bot
 """
 
 import os
-import pandas as pd
 import re
 from datetime import datetime
 import pytz
 import shutil
-from config import EXCEL_FILE, ADMIN_IDS
+import logging
+from config import DATA_DIR
 
-def verificar_admin(user_id):
-    """
-    Verifica se o usuário é um administrador
-    
-    Args:
-        user_id (int): ID do usuário
-        
-    Returns:
-        bool: True se for administrador, False caso contrário
-    """
-    return user_id in ADMIN_IDS
+# Importar funções do módulo de banco de dados
+from utils.database import (
+    verificar_admin, adicionar_admin, 
+    verificar_cadastro_existente as db_verificar_cadastro_existente,
+    salvar_responsavel, buscar_responsavel_por_id,
+    buscar_responsaveis_por_codigo, listar_todos_responsaveis,
+    remover_responsavel, remover_responsavel_especifico
+)
 
-def adicionar_admin(novo_admin_id):
-    """
-    Adiciona um novo administrador
-    
-    Args:
-        novo_admin_id (int): ID do novo administrador
-        
-    Returns:
-        tuple: (sucesso, status)
-    """
-    try:
-        global ADMIN_IDS
-        
-        # Verificar se já é administrador
-        if novo_admin_id in ADMIN_IDS:
-            return False, "já é admin"
-        
-        # Adicionar à lista global
-        ADMIN_IDS.append(novo_admin_id)
-        
-        # Salvar no arquivo para persistência
-        with open('admin_ids.txt', 'w') as f:
-            for admin_id in ADMIN_IDS:
-                f.write(f"{admin_id}\n")
-        
-        return True, "sucesso"
-    except Exception as e:
-        return False, str(e)
+# Configurar logger
+logger = logging.getLogger("CCB-Alerta-Bot.utils")
+
+# Funções adaptadas para usar o banco de dados
 
 def verificar_formato_cadastro(texto):
     """
@@ -77,7 +50,7 @@ def extrair_dados_cadastro(texto):
         
     Returns:
         tuple: (codigo, nome, funcao) ou (None, None, None) se inválido
-    """
+   """
     if not verificar_formato_cadastro(texto):
         return None, None, None
     
@@ -95,27 +68,38 @@ def extrair_dados_cadastro(texto):
 
 def fazer_backup_planilha():
     """
-    Cria um backup da planilha atual
+    Cria um backup do banco de dados
     
     Returns:
         str: Nome do arquivo de backup
     """
     try:
-        if not os.path.exists(EXCEL_FILE):
+        from utils.database import get_db_path
+        db_path = get_db_path()
+        
+        if not os.path.exists(db_path):
+            logger.warning(f"Banco de dados não encontrado para backup: {db_path}")
             return None
             
         # Criar nome para backup
         fuso_horario = pytz.timezone('America/Sao_Paulo')
         agora = datetime.now(fuso_horario)
         timestamp = agora.strftime("%Y%m%d%H%M%S")
-        backup_file = f"backup_{timestamp}_{EXCEL_FILE}"
+        
+        # Diretório de backup
+        backup_dir = os.path.join(DATA_DIR, "backup")
+        os.makedirs(backup_dir, exist_ok=True)
+        
+        # Nome do arquivo
+        backup_file = os.path.join(backup_dir, f"alertas_bot_{timestamp}.db")
         
         # Criar cópia física do arquivo
-        shutil.copy2(EXCEL_FILE, backup_file)
+        shutil.copy2(db_path, backup_file)
         
+        logger.info(f"Backup do banco de dados criado: {backup_file}")
         return backup_file
     except Exception as e:
-        print(f"Erro ao fazer backup: {e}")
+        logger.error(f"Erro ao fazer backup: {e}")
         return None
 
 def verificar_cadastro_existente(codigo, nome, funcao):
@@ -130,35 +114,11 @@ def verificar_cadastro_existente(codigo, nome, funcao):
     Returns:
         bool: True se existir, False caso contrário
     """
-    try:
-        if not os.path.exists(EXCEL_FILE):
-            return False
-            
-        df = pd.read_excel(EXCEL_FILE)
-        
-        if df.empty:
-            return False
-        
-        # Normalizar para comparação (remover espaços extras e converter para maiúsculas)
-        codigo_norm = codigo.strip().upper()
-        nome_norm = nome.strip().upper()
-        funcao_norm = funcao.strip().upper()
-        
-        # Verificar se existe cadastro idêntico
-        for _, row in df.iterrows():
-            if (str(row['Codigo_Casa']).strip().upper() == codigo_norm and
-                str(row['Nome']).strip().upper() == nome_norm and
-                str(row['Funcao']).strip().upper() == funcao_norm):
-                return True
-                
-        return False
-    except Exception as e:
-        print(f"Erro ao verificar cadastro existente: {e}")
-        return False
+    return db_verificar_cadastro_existente(codigo, nome, funcao)
 
 def salvar_cadastro(codigo, nome, funcao, user_id, username):
     """
-    Salva os dados do cadastro na planilha Excel
+    Salva os dados do cadastro no banco de dados
     
     Args:
         codigo (str): Código da casa
@@ -170,82 +130,38 @@ def salvar_cadastro(codigo, nome, funcao, user_id, username):
     Returns:
         tuple: (sucesso, status)
     """
-    try:
-        # Verificar se a planilha existe, se não, criar
-        if not os.path.exists(EXCEL_FILE):
-            df = pd.DataFrame(columns=[
-                'Codigo_Casa', 'Nome', 'Funcao', 
-                'User_ID', 'Username', 'Data_Cadastro',
-                'Ultima_Atualizacao'
-            ])
-            
-            # Criar um writer com engine openpyxl
-            writer = pd.ExcelWriter(EXCEL_FILE, engine='openpyxl')
-            
-            # Escrever o DataFrame para o Excel
-            df.to_excel(writer, index=False)
-            
-            # Obter a planilha ativa
-            worksheet = writer.sheets['Sheet1']
-            
-            # Ajustar largura das colunas
-            worksheet.column_dimensions['A'].width = 15  # Codigo_Casa
-            worksheet.column_dimensions['B'].width = 30  # Nome
-            worksheet.column_dimensions['C'].width = 20  # Funcao
-            worksheet.column_dimensions['D'].width = 15  # User_ID
-            worksheet.column_dimensions['E'].width = 20  # Username
-            worksheet.column_dimensions['F'].width = 20  # Data_Cadastro
-            worksheet.column_dimensions['G'].width = 20  # Ultima_Atualizacao
-            
-            # Salvar o arquivo
-            writer.close()
-            print(f"Planilha {EXCEL_FILE} criada com sucesso")
+    return salvar_responsavel(codigo, nome, funcao, user_id, username)
+
+# Funções de pesquisa para compatibilidade com o código existente
+def buscar_usuario_por_id(user_id):
+    """
+    Busca um usuário pelo ID do Telegram
+    
+    Args:
+        user_id (int): ID do usuário
         
-        # Verificar duplicata antes de salvar
-        if verificar_cadastro_existente(codigo, nome, funcao):
-            print(f"Tentativa de cadastro duplicado: {codigo}, {nome}, {funcao}")
-            return False, "duplicado"
+    Returns:
+        dict: Dados do usuário ou None se não encontrado
+    """
+    return buscar_responsavel_por_id(user_id)
+
+def buscar_usuarios_por_codigo(codigo_casa):
+    """
+    Busca usuários pelo código da casa
+    
+    Args:
+        codigo_casa (str): Código da casa
         
-        # Data atual em formato brasileiro
-        fuso_horario = pytz.timezone('America/Sao_Paulo')
-        agora = datetime.now(fuso_horario)
-        data_formatada = agora.strftime("%d/%m/%Y %H:%M:%S")
-        
-        # Criar DataFrame com os dados
-        novo_registro = pd.DataFrame({
-            'Codigo_Casa': [codigo],
-            'Nome': [nome],
-            'Funcao': [funcao],
-            'User_ID': [user_id],
-            'Username': [username],
-            'Data_Cadastro': [data_formatada],
-            'Ultima_Atualizacao': [data_formatada]
-        })
-        
-        # Ler a planilha existente
-        df_existente = pd.read_excel(EXCEL_FILE)
-        
-        # Concatenar com novo registro
-        df_atualizado = pd.concat([df_existente, novo_registro], ignore_index=True)
-        
-        # Salvar com formatação de colunas
-        with pd.ExcelWriter(EXCEL_FILE, engine='openpyxl') as writer:
-            df_atualizado.to_excel(writer, index=False)
-            
-            # Obter a planilha ativa
-            worksheet = writer.sheets['Sheet1']
-            
-            # Ajustar largura das colunas
-            worksheet.column_dimensions['A'].width = 15  # Codigo_Casa
-            worksheet.column_dimensions['B'].width = 30  # Nome
-            worksheet.column_dimensions['C'].width = 20  # Funcao
-            worksheet.column_dimensions['D'].width = 15  # User_ID
-            worksheet.column_dimensions['E'].width = 20  # Username
-            worksheet.column_dimensions['F'].width = 20  # Data_Cadastro
-            worksheet.column_dimensions['G'].width = 20  # Ultima_Atualizacao
-        
-        print(f"Cadastro salvo com sucesso: {codigo}, {nome}, {funcao}")
-        return True, "sucesso"
-    except Exception as e:
-        print(f"Erro ao salvar cadastro: {e}")
-        return False, str(e)
+    Returns:
+        list: Lista de dicionários com dados dos usuários
+    """
+    return buscar_responsaveis_por_codigo(codigo_casa)
+
+def buscar_todos_usuarios():
+    """
+    Retorna todos os usuários cadastrados
+    
+    Returns:
+        list: Lista de dicionários com dados dos usuários
+    """
+    return listar_todos_responsaveis()    
