@@ -23,6 +23,9 @@ DATA_DIR = os.path.join(RENDER_DISK_PATH, "shared_data")
 # Caminho para o banco de dados SQLite
 DATABASE_PATH = os.path.join(DATA_DIR, "ccb_alerta_bot.db")
 
+# IDs de administradores (lista inicial)
+ADMIN_IDS = [5876346562]  # Adicione aqui os IDs dos administradores
+
 def verificar_diretorios():
     """Garante que os diretórios necessários existam"""
     # Garantir que o diretório de dados existe
@@ -36,14 +39,13 @@ def verificar_diretorios():
     logger.info(f"Diretórios verificados e criados em: {DATA_DIR}")
     logger.info(f"Banco de dados será armazenado em: {DATABASE_PATH}")
 
-# IDs de administradores (lista inicial)
-ADMIN_IDS = [5876346562]  # Adicione aqui os IDs dos administradores
-
 # Estados para a conversa de cadastro em etapas
 CODIGO, NOME, FUNCAO, CONFIRMAR = range(4)
 
 def inicializar_sistema():
     """Inicializa todos os componentes do sistema"""
+    global ADMIN_IDS  # Declaração global movida para o início da função
+    
     # Garantir que os diretórios existam antes de inicializar
     verificar_diretorios()  
     
@@ -61,7 +63,6 @@ def inicializar_sistema():
         logger.info(f"{count} administradores padrão configurados")
     
         # Carregar lista atual de administradores
-        global ADMIN_IDS
         admins = listar_admins()
         if admins:
             ADMIN_IDS = admins
