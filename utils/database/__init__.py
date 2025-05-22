@@ -21,6 +21,7 @@ from .database import (
     remover_responsavel,
     remover_responsavel_especifico,
     editar_responsavel,
+    limpar_todos_responsaveis,  # Função que estava faltando
     verificar_admin,
     listar_admins,
     adicionar_admin,
@@ -33,3 +34,7 @@ from .database import (
     obter_estatisticas_alertas,
     inicializar_admins_padrao
 )
+
+# Criar aliases para manter compatibilidade com código existente
+inserir_cadastro = salvar_responsavel  # Alias para compatibilidade
+obter_cadastro_por_user_id = obter_cadastros_por_user_id  # Alias para compatibilidade
