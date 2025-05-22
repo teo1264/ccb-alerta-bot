@@ -20,7 +20,8 @@ try:
     from utils.database import (
         listar_todos_responsaveis, buscar_responsaveis_por_codigo,
         buscar_responsavel_por_id, remover_responsavel_especifico,
-        editar_responsavel, limpar_todos_responsaveis, get_db_path
+        editar_responsavel, limpar_todos_responsaveis, get_db_path,
+        fazer_backup_banco
     )
 except ImportError:
     # Se falhar, tenta encontrar o módulo no diretório raiz
@@ -31,7 +32,8 @@ except ImportError:
     from utils.database import (
         listar_todos_responsaveis, buscar_responsaveis_por_codigo,
         buscar_responsavel_por_id, remover_responsavel_especifico,
-        editar_responsavel, limpar_todos_responsaveis, get_db_path
+        editar_responsavel, limpar_todos_responsaveis, get_db_path,
+        fazer_backup_banco
     )
 
 # Logger
@@ -387,7 +389,7 @@ async def processar_callback_admin(update: Update, context: ContextTypes.DEFAULT
     if query.data == "confirmar_limpar":
         try:
             # Fazer backup antes de limpar
-            backup_file = fazer_backup_planilha()
+            backup_file = fazer_backup_banco()
             
             # Limpar todos os registros
             sucesso = limpar_todos_responsaveis()
@@ -544,7 +546,80 @@ async def editar_buscar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if len(resultados) == 0:
             await update.message.reply_text(
                 "A Paz de Deus!\n\n"
-                f"❌ *Nenhum cadastro encontrado com o termo '{termo_busca}'.*\n\n"
+                f"ℹ️ *Encontrados {len(responsaveis)} cadastros com o código {codigo}*\n\n"
+                "Por favor, especifique qual registro deseja editar usando o comando:\n"
+                "`/editar CODIGO CAMPO VALOR \"NOME\"`\n\n"
+                "Por exemplo: `/editar BR21-0001 Funcao \"Auxiliar da Escrita\" \"João da Silva\"`\n\n"
+                "Cadastros encontrados:\n"
+            )
+            
+            for i, resp in enumerate(responsaveis, 1):
+                mensagem += f"{i}. *{resp['nome']}* ({resp['funcao']})\n"
+            
+            await update.message.reply_text(mensagem, parse_mode='Markdown')
+            return
+        
+        # Se chegou aqui, há apenas um responsável com este código
+        responsavel = responsaveis[0]
+        
+        # Fazer backup antes de modificar
+        fazer_backup_banco()
+        
+        # Obter valor antigo para mostrar na confirmação
+        valor_antigo = responsavel[campo_db]
+        
+        # Preparar dicionário com campos a serem atualizados
+        campos_atualizacao = {campo_db: valor}
+        
+        # Atualizar a data de modificação
+        fuso_horario = pytz.timezone('America/Sao_Paulo')
+        agora = datetime.now(fuso_horario)
+        data_formatada = agora.strftime("%d/%m/%Y %H:%M:%S")
+        campos_atualizacao['ultima_atualizacao'] = data_formatada
+        
+        # Atualizar cadastro
+        sucesso = editar_responsavel(responsavel['id'], campos_atualizacao)
+        
+        if not sucesso:
+            await update.message.reply_text(
+                "A Paz de Deus!\n\n"
+                "❌ *Erro ao atualizar cadastro.*\n\n"
+                "Por favor, tente novamente mais tarde.\n\n"
+                "_Deus te abençoe!_ 🙏",
+                parse_mode='Markdown'
+            )
+            return
+        
+        # Obter nome da igreja para a mensagem de confirmação
+        nome_igreja = "Desconhecida"
+        try:
+            igreja_info = obter_igreja_por_codigo(codigo)
+            if igreja_info:
+                nome_igreja = igreja_info['nome']
+        except:
+            pass
+        
+        await update.message.reply_text(
+            "A Paz de Deus!\n\n"
+            "✅ *Cadastro atualizado com sucesso!*\n\n"
+            f"📄 *Código:* `{codigo}`\n"
+            f"🏢 *Casa:* `{nome_igreja}`\n"
+            f"👤 *Nome:* `{responsavel['nome']}`\n"
+            f"📝 *Campo atualizado:* `{campo}`\n"
+            f"📄 *Valor antigo:* `{valor_antigo}`\n"
+            f"📄 *Novo valor:* `{valor}`\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        
+    except Exception as e:
+        logger.error(f"Erro ao atualizar cadastro: {e}")
+        await update.message.reply_text(
+            "A Santa Paz de Deus!\n\n"
+            f"❌ *Erro ao atualizar cadastro: {str(e)}*\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )❌ *Nenhum cadastro encontrado com o termo '{termo_busca}'.*\n\n"
                 "_Deus te abençoe!_ 🙏",
                 parse_mode='Markdown'
             )
@@ -680,7 +755,7 @@ async def editar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
         responsavel = responsaveis[0]
         
         # Fazer backup antes de modificar
-        fazer_backup_planilha()
+        fazer_backup_banco()
         
         # Obter valor antigo para mostrar na confirmação
         valor_antigo = responsavel[campo_db]
@@ -878,7 +953,7 @@ async def processar_callback_exclusao(update: Update, context: ContextTypes.DEFA
         
         try:
             # Fazer backup antes de modificar
-            fazer_backup_planilha()
+            fazer_backup_banco()
             
             # Excluir o cadastro utilizando seu ID
             sucesso, total = remover_responsavel_especifico(
@@ -1003,7 +1078,7 @@ async def excluir_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         
         # Fazer backup antes de modificar
-        fazer_backup_planilha()
+        fazer_backup_banco()
         
         # Obter nome da igreja para a mensagem de confirmação
         nome_igreja = "Desconhecida"
@@ -1045,309 +1120,30 @@ async def excluir_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown'
         )
 
-async def excluir_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Exclui um cadastro pelo número de ID (simplificado)
-    Uso: /excluir_id NUMERO
-    Exemplo: /excluir_id 3
-    """
-    # Verificar se o usuário é administrador
-    if not verificar_admin(update.effective_user.id):
-        await update.message.reply_text(
-            "A Paz de Deus!\n\n"
-            "⚠️ *Acesso Negado*\n\n"
-            "Você não tem permissão para acessar esta função.\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
-        )
-        return
+# Função para registrar todos os handlers administrativos
+def registrar_handlers_admin(application):
+    """Registra todos os handlers administrativos"""
+    # Comandos administrativos básicos
+    application.add_handler(CommandHandler("exportar", exportar_planilha))
+    application.add_handler(CommandHandler("listar", listar_cadastros))
+    application.add_handler(CommandHandler("limpar", limpar_cadastros))
+    application.add_handler(CommandHandler("admin_add", adicionar_admin_cmd))
     
-    # Verificar argumentos
-    args = context.args
-    if not args or not args[0].isdigit():
-        await update.message.reply_text(
-            "A Paz de Deus!\n\n"
-            "❌ *Formato inválido!*\n\n"
-            "Use: `/excluir_id NUMERO`\n"
-            "Exemplo: `/excluir_id 3`\n\n"
-            "O número deve corresponder ao índice mostrado nos resultados de busca.\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
-        )
-        return
+    # Comandos para edição e busca
+    application.add_handler(CommandHandler("editar_buscar", editar_buscar))
+    application.add_handler(CommandHandler("editar", editar_cadastro))
     
-    # Obter o ID do cadastro a ser excluído
-    indice = int(args[0])
+    # Comandos para exclusão
+    application.add_handler(CommandHandler("excluir", excluir_cadastro))
+    application.add_handler(CommandHandler("excluir_id", excluir_id))
     
-    # Verificar se há cadastros no contexto
-    if 'indices_cadastros' not in context.user_data or not context.user_data['indices_cadastros']:
-        await update.message.reply_text(
-            "A Paz de Deus!\n\n"
-            "❓ *Por favor, primeiro use `/listar` ou `/buscar` para ver os cadastros disponíveis.*\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
-        )
-        return
+    # Callbacks para botões inline
+    application.add_handler(CallbackQueryHandler(
+        processar_callback_admin, 
+        pattern='^(confirmar_limpar|cancelar_limpar)$'
+    ))
     
-    # Verificar se o índice existe
-    indices_cadastros = context.user_data['indices_cadastros']
-    if indice not in indices_cadastros:
-        await update.message.reply_text(
-            "A Paz de Deus!\n\n"
-            f"❌ *Não foi encontrado cadastro com o índice #{indice}.*\n\n"
-            "Use `/listar` ou `/buscar` para ver os números de índice corretos.\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
-        )
-        return
-    
-    # Obter dados do cadastro
-    cadastro = indices_cadastros[indice]
-    
-    # Obter nome da igreja para a mensagem de confirmação
-    nome_igreja = "Desconhecida"
-    try:
-        igreja_info = obter_igreja_por_codigo(cadastro['codigo'])
-        if igreja_info:
-            nome_igreja = igreja_info['nome']
-    except:
-        pass
-    
-    # Armazenar temporariamente o cadastro a ser excluído
-    context.user_data['cadastro_exclusao'] = cadastro
-    
-    # Botões de confirmação
-    keyboard = [
-        [
-            InlineKeyboardButton("✅ Sim, excluir", callback_data="confirmar_exclusao_id"),
-            InlineKeyboardButton("❌ Não, cancelar", callback_data="cancelar_exclusao_id")
-        ]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    await update.message.reply_text(
-        "A Paz de Deus!\n\n"
-        "⚠️ *Confirmação de Exclusão*\n\n"
-        "Você está prestes a excluir o seguinte cadastro:\n\n"
-        f"📍 *Código:* `{cadastro['codigo']}`\n"
-        f"🏢 *Casa:* `{nome_igreja}`\n"
-        f"👤 *Nome:* `{cadastro['nome']}`\n"
-        f"🧑‍💼 *Função:* `{cadastro['funcao']}`\n\n"
-        "Tem certeza que deseja excluir este cadastro?\n\n"
-        "Esta ação não pode ser desfeita!",
-        reply_markup=reply_markup,
-        parse_mode='Markdown'
-    )
-
-async def processar_callback_exclusao(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Processa os callbacks de confirmação ou cancelamento de exclusão"""
-    query = update.callback_query
-    await query.answer()
-    
-    # Verificar se o usuário é administrador
-    if not verificar_admin(update.effective_user.id):
-        await query.edit_message_text(
-            "A Paz de Deus!\n\n"
-            "⚠️ *Acesso Negado*\n\n"
-            "Você não tem permissão para acessar esta função.\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
-        )
-        return
-    
-    if query.data == "cancelar_exclusao_id":
-        # Limpar dados de exclusão
-        if 'cadastro_exclusao' in context.user_data:
-            del context.user_data['cadastro_exclusao']
-        
-        await query.edit_message_text(
-            "A Paz de Deus!\n\n"
-            "✅ *Exclusão cancelada!*\n\n"
-            "Nenhum cadastro foi excluído.\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
-        )
-        return
-    
-    elif query.data == "confirmar_exclusao_id":
-        # Verificar se há dados de exclusão
-        if 'cadastro_exclusao' not in context.user_data:
-            await query.edit_message_text(
-                "A Paz de Deus!\n\n"
-                "❌ *Não foi possível excluir o cadastro. Dados não encontrados.*\n\n"
-                "Por favor, tente novamente.\n\n"
-                "_Deus te abençoe!_ 🙏",
-                parse_mode='Markdown'
-            )
-            return
-        
-        cadastro = context.user_data['cadastro_exclusao']
-        
-        try:
-            # Fazer backup antes de modificar
-            fazer_backup_planilha()
-            
-            # Excluir o cadastro utilizando seu ID
-            sucesso, total = remover_responsavel_especifico(
-                cadastro['codigo'], 
-                cadastro['nome'],
-                cadastro['funcao']
-            )
-            
-            if not sucesso or total == 0:
-                await query.edit_message_text(
-                    "A Paz de Deus!\n\n"
-                    "❌ *Não foi possível excluir o cadastro. Registro não encontrado.*\n\n"
-                    "O cadastro pode já ter sido excluído anteriormente.\n\n"
-                    "_Deus te abençoe!_ 🙏",
-                    parse_mode='Markdown'
-                )
-                return
-            
-            # Obter nome da igreja para a mensagem de confirmação
-            nome_igreja = "Desconhecida"
-            try:
-                igreja_info = obter_igreja_por_codigo(cadastro['codigo'])
-                if igreja_info:
-                    nome_igreja = igreja_info['nome']
-            except:
-                pass
-            
-            await query.edit_message_text(
-                "A Paz de Deus!\n\n"
-                "✅ *Cadastro excluído com sucesso!*\n\n"
-                f"📍 *Código:* `{cadastro['codigo']}`\n"
-                f"🏢 *Casa:* `{nome_igreja}`\n"
-                f"👤 *Nome:* `{cadastro['nome']}`\n"
-                f"🧑‍💼 *Função:* `{cadastro['funcao']}`\n\n"
-                "_Deus te abençoe!_ 🙏",
-                parse_mode='Markdown'
-            )
-            
-            # Limpar dados de exclusão
-            del context.user_data['cadastro_exclusao']
-            
-            # Atualizar a lista de índices para refletir a exclusão
-            if 'indices_cadastros' in context.user_data:
-                # Não podemos simplesmente remover o índice, pois os outros índices 
-                # não seriam atualizados. Em vez disso, marcamos como excluído
-                for idx in context.user_data['indices_cadastros']:
-                    if context.user_data['indices_cadastros'][idx].get('id') == cadastro['id']:
-                        context.user_data['indices_cadastros'][idx]['excluido'] = True
-            
-        except Exception as e:
-            logger.error(f"Erro ao excluir cadastro: {e}")
-            await query.edit_message_text(
-                "A Paz de Deus!\n\n"
-                f"❌ Erro ao excluir cadastro: {str(e)}\n\n"
-                "_Deus te abençoe!_ 🙏",
-                parse_mode='Markdown'
-            )
-            return
-
-async def excluir_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Exclui um cadastro específico (apenas para administradores)
-    Uso: /excluir CODIGO_CASA NOME
-    Exemplo: /excluir BR21-0001 "João da Silva"
-    """
-    # Verificar se o usuário é administrador
-    if not verificar_admin(update.effective_user.id):
-        await update.message.reply_text(
-            "A Paz de Deus!\n\n"
-            "⚠️ *Acesso Negado*\n\n"
-            "Você não tem permissão para acessar esta função.\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
-        )
-        return
-    
-    # Verificar argumentos
-    args = context.args
-    if len(args) < 2:
-        await update.message.reply_text(
-            "A Santa Paz de Deus!\n\n"
-            "❌ *Formato inválido!*\n\n"
-            "Use: `/excluir CODIGO_CASA NOME`\n"
-            "Exemplo: `/excluir BR21-0001 \"João da Silva\"`\n\n"
-            "Para encontrar um cadastro, use o comando `/editar_buscar`.\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
-        )
-        return
-    
-    codigo = args[0]
-    nome = ' '.join(args[1:])
-    
-    # Remover aspas que possam estar em volta do nome
-    nome = nome.strip('"\'')
-    
-    try:
-        # Buscar responsáveis com o código informado
-        responsaveis = buscar_responsaveis_por_codigo(codigo)
-        
-        if not responsaveis:
-            await update.message.reply_text(
-                "A Paz de Deus!\n\n"
-                f"❌ Cadastro não encontrado para código `{codigo}`.\n\n"
-                "Use o comando `/editar_buscar` para encontrar o cadastro correto.\n\n"
-                "_Deus te abençoe!_ 🙏",
-                parse_mode='Markdown'
-            )
-            return
-        
-        # Filtrar pelo nome
-        responsaveis_filtrados = [r for r in responsaveis if r['nome'].lower() == nome.lower()]
-        
-        if not responsaveis_filtrados:
-            await update.message.reply_text(
-                "A Paz de Deus!\n\n"
-                f"❌ Cadastro não encontrado para código `{codigo}` e nome `{nome}`.\n\n"
-                "Use o comando `/editar_buscar` para encontrar o cadastro correto.\n\n"
-                "_Deus te abençoe!_ 🙏",
-                parse_mode='Markdown'
-            )
-            return
-        
-        # Fazer backup antes de modificar
-        fazer_backup_planilha()
-        
-        # Obter nome da igreja para a mensagem de confirmação
-        nome_igreja = "Desconhecida"
-        try:
-            igreja_info = obter_igreja_por_codigo(codigo)
-            if igreja_info:
-                nome_igreja = igreja_info['nome']
-        except:
-            pass
-        
-        # Excluir cadastro
-        sucesso, total = remover_responsavel_especifico(codigo, nome)
-        
-        if not sucesso or total == 0:
-            await update.message.reply_text(
-                "A Paz de Deus!\n\n"
-                "❌ *Não foi possível excluir o cadastro.*\n\n"
-                "_Deus te abençoe!_ 🙏",
-                parse_mode='Markdown'
-            )
-            return
-        
-        await update.message.reply_text(
-            "A Paz de Deus!\n\n"
-            "✅ *Cadastro excluído com sucesso!*\n\n"
-            f"📄 *Código:* `{codigo}`\n"
-            f"🏢 *Casa:* `{nome_igreja}`\n"
-            f"👤 *Nome:* `{nome}`\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
-        )
-        
-    except Exception as e:
-        logger.error(f"Erro ao excluir cadastro: {e}")
-        await update.message.reply_text(
-            "A Santa Paz de Deus!\n\n"
-            f"❌ Erro ao excluir cadastro: {str(e)}\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
-        )
+    application.add_handler(CallbackQueryHandler(
+        processar_callback_exclusao, 
+        pattern='^(confirmar_exclusao_id|cancelar_exclusao_id)$'
+    ))
