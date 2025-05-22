@@ -835,3 +835,32 @@ def inicializar_admins_padrao(admin_ids):
     except Exception as e:
         logger.error(f"Erro ao inicializar admins padrão: {e}")
         return 0
+
+# Adicionar esta função no final do arquivo utils/database/database.py
+# Logo após a função inicializar_admins_padrao
+
+def limpar_todos_responsaveis():
+    """
+    Remove todos os responsáveis do banco de dados
+    
+    Returns:
+        bool: True se removido com sucesso, False caso contrário
+    """
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Contar quantos registros serão afetados
+            cursor.execute("SELECT COUNT(*) as total FROM responsaveis")
+            count = cursor.fetchone()['total']
+            
+            # Excluir todos os registros
+            cursor.execute("DELETE FROM responsaveis")
+            conn.commit()
+            
+            logger.info(f"Removidos {count} responsáveis do banco de dados")
+            return True
+    
+    except Exception as e:
+        logger.error(f"Erro ao limpar todos os responsáveis: {e}")
+        return False
