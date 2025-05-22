@@ -20,8 +20,8 @@ try:
     # Primeiro tenta importar diretamente (funciona se o arquivo estiver no PYTHONPATH)
     from utils.database import (
         verificar_cadastro_existente,
-        inserir_cadastro,
-        obter_cadastro_por_user_id
+        salvar_responsavel as inserir_cadastro,  # Usar a função correta
+        obter_cadastros_por_user_id as obter_cadastro_por_user_id  # Usar a função correta
     )
 except ImportError:
     # Se falhar, tenta encontrar o módulo no diretório raiz
@@ -31,8 +31,8 @@ except ImportError:
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
     from utils.database import (
         verificar_cadastro_existente, 
-        inserir_cadastro,
-        obter_cadastro_por_user_id
+        salvar_responsavel as inserir_cadastro,  # Usar a função correta
+        obter_cadastros_por_user_id as obter_cadastro_por_user_id  # Usar a função correta
     )
 from handlers.data import IGREJAS, FUNCOES, agrupar_igrejas, agrupar_funcoes, obter_igreja_por_codigo
 
@@ -463,10 +463,10 @@ async def confirmar_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Salvar cadastro usando a nova função SQLite
     try:
-        sucesso = inserir_cadastro(codigo, nome, funcao, user_id, username)
+        sucesso, status = inserir_cadastro(codigo, nome, funcao, user_id, username)
         
         if not sucesso:
-            raise Exception("Falha ao inserir cadastro no banco de dados")
+            raise Exception(f"Falha ao inserir cadastro no banco de dados: {status}")
         
         # Sucesso
         await query.edit_message_text(
