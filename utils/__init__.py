@@ -2,37 +2,39 @@
 # -*- coding: utf-8 -*-
 
 """
-Pacote de utilitários para o CCB Alerta Bot
+Submódulo de acesso ao banco de dados para o CCB Alerta Bot
 """
 
-# Importar todas as funções necessárias para disponibilizar no namespace do pacote
-from .utils import (
-    verificar_formato_cadastro,
-    extrair_dados_cadastro,
-    fazer_backup_planilha,
-    verificar_cadastro_existente,
-    salvar_cadastro,
-    buscar_usuario_por_id,
-    buscar_usuarios_por_codigo,
-    buscar_todos_usuarios,
-    atualizar_cadastro,
-    remover_cadastro,
-    criar_pasta_temporaria,
-    remover_pasta_temporaria,
-    registrar_consentimento_lgpd,
-    verificar_consentimento_lgpd,
-    remover_consentimento_lgpd
-)
-
-# Importar funções do banco de dados diretamente para o namespace do utils
-from utils.database import (
-    verificar_admin,
-    adicionar_admin,
-    listar_admins,
+# Importar todas as funções para o namespace do pacote
+from .database import (
+    get_db_path,
+    get_connection,
+    init_database,
+    fazer_backup_banco,
     salvar_responsavel,
-    buscar_responsavel_por_id,
+    verificar_cadastro_existente,
+    obter_cadastros_por_user_id,
+    remover_cadastros_por_user_id,
     buscar_responsaveis_por_codigo,
+    buscar_responsavel_por_id,
     listar_todos_responsaveis,
     remover_responsavel,
-    remover_responsavel_especifico
+    remover_responsavel_especifico,
+    editar_responsavel,
+    limpar_todos_responsaveis,  # Função que estava faltando
+    verificar_admin,
+    listar_admins,
+    adicionar_admin,
+    remover_admin,
+    registrar_consentimento_lgpd,
+    verificar_consentimento_lgpd,
+    remover_consentimento_lgpd,
+    registrar_alerta_enviado,
+    listar_alertas_enviados,
+    obter_estatisticas_alertas,
+    inicializar_admins_padrao
 )
+
+# Criar aliases para manter compatibilidade com código existente
+inserir_cadastro = salvar_responsavel  # Alias para compatibilidade
+obter_cadastro_por_user_id = obter_cadastros_por_user_id  # Alias para compatibilidade
