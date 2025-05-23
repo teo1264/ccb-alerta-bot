@@ -536,7 +536,10 @@ async def processar_callback_funcao_similar(update: Update, context: ContextType
     return SELECIONAR_FUNCAO
 
 async def confirmar_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Processa a confirmação do cadastro em etapas"""
+    """
+    Processa a confirmação do cadastro em etapas
+    CORREÇÃO: Melhor tratamento de casos de cadastro duplicado e atualização
+    """
     query = update.callback_query
     await query.answer()
     
@@ -565,41 +568,114 @@ async def confirmar_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     username = update.effective_user.username or ""
     
-    # Verificar se já existe cadastro exatamente igual
-    if verificar_cadastro_existente(codigo, nome, funcao):
-        await query.edit_message_text(
-            " *A Paz de Deus!*\n\n"
-            "⚠️ *Atenção!*\n\n"
-            f"Já existe um cadastro para a Casa de Oração *{codigo}* com o nome *{nome}* e função *{funcao}*.\n\n"
-            "Por favor, verifique os dados ou entre em contato com o administrador.\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
-        )
-        # Limpar dados do contexto
-        if 'cadastro_temp' in context.user_data:
-            del context.user_data['cadastro_temp']
-        return ConversationHandler.END
+    # CORREÇÃO: Usar a nova função de verificação detalhada
+    from utils.database import verificar_cadastro_existente_detalhado
+    cadastro_existente = verificar_cadastro_existente_detalhado(codigo, nome)
+    
+    if cadastro_existente:
+        # Existe cadastro com mesmo código + nome
+        
+        if cadastro_existente['user_id'] == user_id:
+            # É o mesmo usuário - permitir atualização da função
+            if cadastro_existente['funcao'] != funcao:
+                await query.edit_message_text(
+                    " *A Paz de Deus!*\n\n"
+                    "ℹ️ *Você já tem cadastro nesta igreja!*\n\n"
+                    f"📍 *Código:* `{codigo}`\n"
+                    f"🏢 *Casa:* `{nome_igreja}`\n"
+                    f"👤 *Nome:* `{nome}`\n"
+                    f"🔧 *Função atual:* `{cadastro_existente['funcao']}`\n"
+                    f"🔧 *Nova função:* `{funcao}`\n\n"
+                    "✅ *Sua função será atualizada.*",
+                    parse_mode='Markdown'
+                )
+            else:
+                await query.edit_message_text(
+                    " *A Paz de Deus!*\n\n"
+                    "ℹ️ *Você já tem cadastro idêntico nesta igreja!*\n\n"
+                    f"📍 *Código:* `{codigo}`\n"
+                    f"🏢 *Casa:* `{nome_igreja}`\n"
+                    f"👤 *Nome:* `{nome}`\n"
+                    f"🔧 *Função:* `{funcao}`\n\n"
+                    "✅ *Seu cadastro já está atualizado.*",
+                    parse_mode='Markdown'
+                )
+        else:
+            # Usuário diferente com mesmo nome na mesma igreja - BLOQUEAR
+            await query.edit_message_text(
+                " *A Paz de Deus!*\n\n"
+                "⚠️ *Nome já cadastrado nesta igreja!*\n\n"
+                f"📍 *Código:* `{codigo}`\n"
+                f"🏢 *Casa:* `{nome_igreja}`\n"
+                f"👤 *Nome:* `{nome}`\n"
+                f"🔧 *Função já cadastrada:* `{cadastro_existente['funcao']}`\n\n"
+                "❌ *Não é possível cadastrar o mesmo nome duas vezes na mesma igreja.*\n\n"
+                "Se você é realmente esta pessoa, entre em contato com o administrador.\n\n"
+                "_Deus te abençoe!_ 🙏",
+                parse_mode='Markdown'
+            )
+            
+            # Limpar dados do contexto
+            if 'cadastro_temp' in context.user_data:
+                del context.user_data['cadastro_temp']
+            return ConversationHandler.END
     
     # Salvar cadastro usando a nova função SQLite
     try:
         sucesso, status = inserir_cadastro(codigo, nome, funcao, user_id, username)
         
         if not sucesso:
-            raise Exception(f"Falha ao inserir cadastro no banco de dados: {status}")
-        
-        # Sucesso
-        await query.edit_message_text(
-            f" *Projeto Débito Automático*\n\n"
-            f"✅ *Cadastro recebido com sucesso:*\n\n"
-            f"📍 *Código:* `{codigo}`\n"
-            f"🏢 *Casa:* `{nome_igreja}`\n"
-            f"👤 *Nome:* `{nome}`\n"
-            f"🔧 *Função:* `{funcao}`\n\n"
-            f"🗂️ Estamos em *fase de cadastro* dos irmãos responsáveis pelo acompanhamento das Contas de Consumo.\n"
-            f"📢 Assim que esta fase for concluída, os *alertas automáticos de consumo* começarão a ser enviados.\n\n"
-            f"_Deus te abençoe!_ 🙌",
-            parse_mode='Markdown'
-        )
+            # Tratar diferentes tipos de erro
+            if status.startswith("nome_ja_cadastrado"):
+                partes = status.split("|")
+                funcao_existente = partes[1] if len(partes) > 1 else "Desconhecida"
+                
+                await query.edit_message_text(
+                    " *A Paz de Deus!*\n\n"
+                    "⚠️ *Nome já cadastrado nesta igreja!*\n\n"
+                    f"📍 *Código:* `{codigo}`\n"
+                    f"🏢 *Casa:* `{nome_igreja}`\n"
+                    f"👤 *Nome:* `{nome}`\n"
+                    f"🔧 *Função já cadastrada:* `{funcao_existente}`\n\n"
+                    "❌ *Não é possível cadastrar o mesmo nome duas vezes na mesma igreja.*\n\n"
+                    "_Deus te abençoe!_ 🙏",
+                    parse_mode='Markdown'
+                )
+            else:
+                raise Exception(f"Erro no cadastro: {status}")
+        else:
+            # Sucesso - tratar diferentes tipos de status
+            if status.startswith("funcao_atualizada"):
+                partes = status.split("|")
+                funcao_antiga = partes[1] if len(partes) > 1 else "Desconhecida"
+                funcao_nova = partes[2] if len(partes) > 2 else funcao
+                
+                await query.edit_message_text(
+                    f" *Projeto Débito Automático*\n\n"
+                    f"✅ *Função atualizada com sucesso!*\n\n"
+                    f"📍 *Código:* `{codigo}`\n"
+                    f"🏢 *Casa:* `{nome_igreja}`\n"
+                    f"👤 *Nome:* `{nome}`\n"
+                    f"🔧 *Função anterior:* `{funcao_antiga}`\n"
+                    f"🔧 *Nova função:* `{funcao_nova}`\n\n"
+                    f"📢 Os alertas automáticos de consumo continuarão sendo enviados para você.\n\n"
+                    f"_Deus te abençoe!_ 🙌",
+                    parse_mode='Markdown'
+                )
+            else:
+                # Cadastro novo
+                await query.edit_message_text(
+                    f" *Projeto Débito Automático*\n\n"
+                    f"✅ *Cadastro recebido com sucesso:*\n\n"
+                    f"📍 *Código:* `{codigo}`\n"
+                    f"🏢 *Casa:* `{nome_igreja}`\n"
+                    f"👤 *Nome:* `{nome}`\n"
+                    f"🔧 *Função:* `{funcao}`\n\n"
+                    f"🗂️ Estamos em *fase de cadastro* dos irmãos responsáveis pelo acompanhamento das Contas de Consumo.\n"
+                    f"📢 Assim que esta fase for concluída, os *alertas automáticos de consumo* começarão a ser enviados.\n\n"
+                    f"_Deus te abençoe!_ 🙌",
+                    parse_mode='Markdown'
+                )
         
     except Exception as e:
         logger.error(f"Erro ao salvar cadastro: {str(e)}")
