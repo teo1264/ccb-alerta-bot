@@ -2,8 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-CCB Alerta Bot - Bot do Telegram para gerenciamento de casas de oração
-VERSÃO CORRIGIDA: Suporte automático a webhook/polling
+CCB Alerta Bot - VERSÃO CORRIGIDA: Flask endpoints funcionais
 """
 
 import logging
@@ -43,12 +42,10 @@ app_telegram = None
 flask_app = None
 
 def configurar_logs():
-    """Configura pasta e arquivos de log (MANTIDO)"""
-    # Criar pasta de logs se não existir
+    """Configura pasta e arquivos de log"""
     if not os.path.exists("logs"):
         os.makedirs("logs")
     
-    # Adicionar log para arquivo
     data_atual = datetime.now().strftime("%Y%m%d")
     file_handler = logging.FileHandler(f"logs/bot_{data_atual}.log")
     file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
@@ -66,7 +63,7 @@ def criar_servidor_webhook():
     flask_app = Flask(__name__)
     
     @flask_app.route('/webhook', methods=['POST'])
-    async def webhook():
+    def webhook():
         """Endpoint para receber updates via webhook"""
         try:
             # Obter dados do request
@@ -79,8 +76,8 @@ def criar_servidor_webhook():
             # Converter para objeto Update do Telegram
             update = Update.de_json(json_data, app_telegram.bot)
             
-            # Processar update
-            await app_telegram.process_update(update)
+            # CORRIGIDO: Processar update de forma síncrona para Flask
+            asyncio.create_task(app_telegram.process_update(update))
             
             logger.debug(f"Webhook processado: {update.update_id}")
             return jsonify({'status': 'ok'}), 200
@@ -92,21 +89,40 @@ def criar_servidor_webhook():
     @flask_app.route('/health', methods=['GET'])
     def health_check():
         """Endpoint para verificação de saúde do serviço"""
-        return jsonify({
-            'status': 'healthy',
-            'timestamp': datetime.now().isoformat(),
-            'bot_username': app_telegram.bot.username if app_telegram else 'N/A'
-        }), 200
+        try:
+            bot_username = app_telegram.bot.username if app_telegram and app_telegram.bot else 'N/A'
+            return jsonify({
+                'status': 'healthy',
+                'timestamp': datetime.now().isoformat(),
+                'bot_username': bot_username,
+                'webhook_url': WEBHOOK_CONFIG.get('webhook_url', 'N/A')
+            }), 200
+        except Exception as e:
+            logger.error(f"Erro no health check: {e}")
+            return jsonify({
+                'status': 'error',
+                'message': str(e),
+                'timestamp': datetime.now().isoformat()
+            }), 500
     
     @flask_app.route('/', methods=['GET'])
     def home():
         """Endpoint raiz com informações básicas"""
-        return jsonify({
-            'service': 'CCB Alerta Bot',
-            'status': 'running',
-            'mode': 'webhook',
-            'timestamp': datetime.now().isoformat()
-        }), 200
+        try:
+            return jsonify({
+                'service': 'CCB Alerta Bot',
+                'status': 'running',
+                'mode': 'webhook',
+                'timestamp': datetime.now().isoformat(),
+                'webhook_url': WEBHOOK_CONFIG.get('webhook_url', 'N/A')
+            }), 200
+        except Exception as e:
+            logger.error(f"Erro no endpoint home: {e}")
+            return jsonify({
+                'service': 'CCB Alerta Bot',
+                'status': 'error',
+                'message': str(e)
+            }), 500
     
     return flask_app
 
@@ -184,7 +200,7 @@ def executar_modo_webhook():
             logger.error("Falha ao criar servidor webhook")
             return False
         
-        # Configurar webhook (async)
+        # CORRIGIDO: Configurar webhook antes de iniciar Flask
         async def setup_webhook():
             webhook_ok = await configurar_webhook(app_telegram)
             if not webhook_ok:
@@ -206,7 +222,8 @@ def executar_modo_webhook():
             host=WEBHOOK_CONFIG['host'],
             port=WEBHOOK_CONFIG['porta'],
             debug=False,
-            use_reloader=False
+            use_reloader=False,
+            threaded=True  # ADICIONADO: Permitir múltiplas threads
         )
         
         return True
@@ -236,7 +253,7 @@ async def executar_modo_polling():
         return False
 
 def main():
-    """Função principal para iniciar o bot (ATUALIZADA)"""
+    """Função principal para iniciar o bot"""
     global app_telegram
     
     logger.info("=" * 50)
@@ -256,7 +273,7 @@ def main():
         # Criar a aplicação
         app_telegram = Application.builder().token(TOKEN).build()
         
-        # Registrar handlers (MANTIDO)
+        # Registrar handlers
         registrar_comandos_basicos(app_telegram)
         registrar_handlers_cadastro(app_telegram)
         registrar_handlers_admin(app_telegram)
