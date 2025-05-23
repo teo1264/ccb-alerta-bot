@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 
 """
-BLOCO 4/4: Imports atualizados e função de registro de handlers
-Adição dos imports necessários e atualização da função registrar_handlers_cadastro()
+Handlers para o processo de cadastro do CCB Alerta Bot
+Adaptado para usar SQLite para armazenamento persistente
+BLOCO 1/5: Imports, configurações e função inicial de cadastro
 """
 
-# Imports atualizados - adicionado 're' para validação de texto
 import re
 import math
 import logging
@@ -48,137 +48,6 @@ logger = logging.getLogger(__name__)
 # Estados adicionais para a navegação nos menus
 SELECIONAR_IGREJA, SELECIONAR_FUNCAO = range(4, 6)
 
-def registrar_handlers_cadastro(application):
-    """
-    Registra handlers relacionados ao cadastro
-    BLOCO 4/4: Função atualizada com novos handlers
-    """
-    # Handler para cadastro manual via comando
-    application.add_handler(CommandHandler("cadastro", cadastro_comando))
-    
-    # Callback handler para aceite de LGPD no cadastro
-    application.add_handler(CallbackQueryHandler(
-        processar_aceite_lgpd_cadastro, 
-        pattern='^aceitar_lgpd_cadastro$'
-    ))
-    
-    # NOVO: Callback handler para função similar (fora do ConversationHandler)
-    application.add_handler(CallbackQueryHandler(
-        processar_callback_funcao_similar,
-        pattern='^(voltar_menu_funcoes|prosseguir_funcao_similar)$'
-    ))
-    
-    # Handler para cadastro em etapas (conversation) - ATUALIZADO
-    cadastro_handler = ConversationHandler(
-        entry_points=[
-            CommandHandler("cadastrar", iniciar_cadastro_etapas),
-            # Adicionar MessageHandler para processar clique no botão de menu (com ambos os formatos)
-            MessageHandler(filters.Regex(r"^(🖋️ Cadastrar Responsável|📝 CADASTRAR RESPONSÁVEL 📝)$"), iniciar_cadastro_etapas)
-        ],
-        states={
-            SELECIONAR_IGREJA: [
-                # Ajustar padrão para reconhecer todos os tipos de callback de igreja
-                CallbackQueryHandler(processar_selecao_igreja, pattern=r'^igreja_'),
-                # ADICIONADO: Callback para cancelar cadastro
-                CallbackQueryHandler(cancelar_cadastro, pattern=r'^cancelar_cadastro$')
-            ],
-            NOME: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, receber_nome)
-            ],
-            SELECIONAR_FUNCAO: [
-                CallbackQueryHandler(processar_selecao_funcao, pattern=r'^funcao_'),
-                # ADICIONADO: Callbacks específicos para navegação e cancelamento
-                CallbackQueryHandler(processar_selecao_funcao, pattern=r'^(funcao_anterior|funcao_proxima)$'),
-                CallbackQueryHandler(cancelar_cadastro, pattern=r'^cancelar_cadastro$')
-            ],
-            FUNCAO: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, receber_funcao),
-                # ADICIONADO: Callbacks para função similar
-                CallbackQueryHandler(processar_callback_funcao_similar, pattern=r'^(voltar_menu_funcoes|prosseguir_funcao_similar)$')
-            ],
-            CONFIRMAR: [
-                CallbackQueryHandler(confirmar_etapas, pattern=r'^(confirmar|cancelar)_etapas$')
-            ]
-        },
-        fallbacks=[
-            CommandHandler("cancelar", cancelar_cadastro),
-            CallbackQueryHandler(cancelar_cadastro, pattern=r'^cancelar_cadastro$'),
-            # ADICIONADO: Fallback para callbacks de função similar
-            CallbackQueryHandler(processar_callback_funcao_similar, pattern=r'^(voltar_menu_funcoes|prosseguir_funcao_similar)$')
-        ],
-        name="cadastro_conversation",
-        persistent=False
-    )
-    application.add_handler(cadastro_handler)
-
-# FUNÇÃO ADICIONAL: Atualização da função mostrar_menu_funcoes para remover botão "Outro"
-async def mostrar_menu_funcoes(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Mostra o menu de seleção de funções - ATUALIZADO SEM "Outro"
-    BLOCO 4/4: Remoção do botão "Outro", mantendo apenas "🔄 Outra Função"
-    """
-    # Agrupar funções em páginas
-    funcoes_paginadas = agrupar_funcoes()
-    pagina_atual = context.user_data['cadastro_temp'].get('pagina_funcao', 0)
-    
-    # Verificar limites da página
-    if pagina_atual >= len(funcoes_paginadas):
-        pagina_atual = 0
-    elif pagina_atual < 0:
-        pagina_atual = len(funcoes_paginadas) - 1
-    
-    context.user_data['cadastro_temp']['pagina_funcao'] = pagina_atual
-    
-    # Preparar botões para a página atual
-    keyboard = []
-    for funcao in funcoes_paginadas[pagina_atual]:
-        callback_data = f"funcao_{funcao}"
-        logger.info(f"Criando botão de função com callback_data: {callback_data}")
-        
-        keyboard.append([InlineKeyboardButton(
-            funcao,
-            callback_data=callback_data
-        )])
-    
-    # Adicionar botões de navegação
-    nav_buttons = []
-    if len(funcoes_paginadas) > 1:
-        nav_buttons.append(InlineKeyboardButton("⬅️ Anterior", callback_data="funcao_anterior"))
-        nav_buttons.append(InlineKeyboardButton("Próxima ➡️", callback_data="funcao_proxima"))
-    keyboard.append(nav_buttons)
-    
-    # ATUALIZADO: Apenas botão "🔄 Outra Função" (removido "Outro")
-    keyboard.append([InlineKeyboardButton("🔄 Outra Função", callback_data="funcao_outra")])
-    
-    # Botão para cancelar
-    keyboard.append([InlineKeyboardButton("❌ Cancelar", callback_data="cancelar_cadastro")])
-    
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    # Criar ou editar mensagem dependendo do contexto
-    texto_mensagem = (
-        " *A Paz de Deus!*\n\n"
-        f"✅ Nome registrado: *{context.user_data['cadastro_temp']['nome']}*\n\n"
-        "Agora, selecione a função do responsável:\n\n"
-        f"📄 *Página {pagina_atual + 1}/{len(funcoes_paginadas)}*"
-    )
-    
-    # Verificar se é atualização ou primeira exibição
-    if isinstance(update, Update):
-        # Primeira exibição
-        await update.message.reply_text(
-            texto_mensagem,
-            reply_markup=reply_markup,
-            parse_mode='Markdown'
-        )
-    else:
-        # Atualização via callback
-        await update.edit_message_text(
-            texto_mensagem,
-            reply_markup=reply_markup,
-            parse_mode='Markdown'
-        )
-
 async def iniciar_cadastro_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Inicia o processo de cadastro passo a passo"""
     # Verificar se o usuário aceitou a LGPD
@@ -219,6 +88,38 @@ async def iniciar_cadastro_etapas(update: Update, context: ContextTypes.DEFAULT_
     logger.info(f"Iniciando cadastro para usuário {update.effective_user.id}")
     await mostrar_menu_igrejas(update, context)
     return SELECIONAR_IGREJA
+
+async def processar_aceite_lgpd_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Processa o aceite dos termos de LGPD para cadastro"""
+    query = update.callback_query
+    await query.answer()
+    
+    if query.data == "aceitar_lgpd_cadastro":
+        # Marcar que o usuário aceitou os termos
+        context.user_data['aceitou_lgpd'] = True
+        
+        # Editar a mensagem para confirmar o aceite
+        await query.edit_message_text(
+            " *A Santa Paz de Deus!*\n\n"
+            "✅ *Agradecemos por aceitar os termos!*\n\n"
+            "Agora podemos prosseguir com seu cadastro.\n"
+            "Por favor, use o comando /cadastrar novamente para iniciar o processo.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+
+async def cadastro_comando(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Redireciona para o cadastro em etapas"""
+    await update.message.reply_text(
+        " *A Paz de Deus!*\n\n"
+        "📝 *Nova forma de cadastro!*\n\n"
+        "Agora utilizamos um processo mais simples, guiado passo a passo.\n\n"
+        "Por favor, use o comando */cadastrar* para iniciar o cadastro.\n\n"
+        "_Deus te abençoe!_ 🙏",
+        parse_mode='Markdown'
+    )
+    # Iniciar automaticamente o fluxo de cadastro em etapas
+    return await iniciar_cadastro_etapas(update, context)
 
 async def mostrar_menu_igrejas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Mostra o menu de seleção de igrejas paginado"""
@@ -365,7 +266,10 @@ async def receber_nome(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return SELECIONAR_FUNCAO
 
 async def mostrar_menu_funcoes(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Mostra o menu de seleção de funções"""
+    """
+    Mostra o menu de seleção de funções - VERSÃO CORRIGIDA
+    Sem duplicação e com todas as melhorias
+    """
     # Agrupar funções em páginas
     funcoes_paginadas = agrupar_funcoes()
     pagina_atual = context.user_data['cadastro_temp'].get('pagina_funcao', 0)
@@ -396,7 +300,7 @@ async def mostrar_menu_funcoes(update: Update, context: ContextTypes.DEFAULT_TYP
         nav_buttons.append(InlineKeyboardButton("Próxima ➡️", callback_data="funcao_proxima"))
     keyboard.append(nav_buttons)
     
-    # Botão para outras funções
+    # APENAS botão "🔄 Outra Função" (sem "Outro")
     keyboard.append([InlineKeyboardButton("🔄 Outra Função", callback_data="funcao_outra")])
     
     # Botão para cancelar
@@ -431,7 +335,7 @@ async def mostrar_menu_funcoes(update: Update, context: ContextTypes.DEFAULT_TYP
 async def processar_selecao_funcao(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Processa a seleção ou navegação no menu de funções
-    BLOCO 2/4: Mensagem melhorada para "Outra Função"
+    VERSÃO CORRIGIDA: Mensagem melhorada para "Outra Função"
     """
     query = update.callback_query
     await query.answer()
@@ -526,7 +430,7 @@ async def processar_selecao_funcao(update: Update, context: ContextTypes.DEFAULT
 async def receber_funcao(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Recebe a função digitada manualmente e aplica validação inteligente
-    BLOCO 3/4: Implementação de detecção de similaridade e validação
+    VERSÃO CORRIGIDA: Implementação completa de detecção de similaridade
     """
     funcao = update.message.text.strip()
     
@@ -607,7 +511,7 @@ async def receber_funcao(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def processar_callback_funcao_similar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Processa os callbacks relacionados à detecção de função similar
-    BLOCO 3/4: Handler para botões de função similar
+    VERSÃO CORRIGIDA: Handler completo para botões de função similar
     """
     query = update.callback_query
     await query.answer()
@@ -781,40 +685,11 @@ async def cancelar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     return ConversationHandler.END
 
-async def cadastro_comando(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Redireciona para o cadastro em etapas"""
-    await update.message.reply_text(
-        " *A Paz de Deus!*\n\n"
-        "📝 *Nova forma de cadastro!*\n\n"
-        "Agora utilizamos um processo mais simples, guiado passo a passo.\n\n"
-        "Por favor, use o comando */cadastrar* para iniciar o cadastro.\n\n"
-        "_Deus te abençoe!_ 🙏",
-        parse_mode='Markdown'
-    )
-    # Iniciar automaticamente o fluxo de cadastro em etapas
-    return await iniciar_cadastro_etapas(update, context)
-
-async def processar_aceite_lgpd_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Processa o aceite dos termos de LGPD para cadastro"""
-    query = update.callback_query
-    await query.answer()
-    
-    if query.data == "aceitar_lgpd_cadastro":
-        # Marcar que o usuário aceitou os termos
-        context.user_data['aceitou_lgpd'] = True
-        
-        # Editar a mensagem para confirmar o aceite
-        await query.edit_message_text(
-            " *A Santa Paz de Deus!*\n\n"
-            "✅ *Agradecemos por aceitar os termos!*\n\n"
-            "Agora podemos prosseguir com seu cadastro.\n"
-            "Por favor, use o comando /cadastrar novamente para iniciar o processo.\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
-        )
-
 def registrar_handlers_cadastro(application):
-    """Registra handlers relacionados ao cadastro"""
+    """
+    Registra handlers relacionados ao cadastro
+    VERSÃO CORRIGIDA: Função completa com todos os novos handlers
+    """
     # Handler para cadastro manual via comando
     application.add_handler(CommandHandler("cadastro", cadastro_comando))
     
@@ -824,7 +699,13 @@ def registrar_handlers_cadastro(application):
         pattern='^aceitar_lgpd_cadastro$'
     ))
     
-    # Handler para cadastro em etapas (conversation)
+    # NOVO: Callback handler para função similar (fora do ConversationHandler)
+    application.add_handler(CallbackQueryHandler(
+        processar_callback_funcao_similar,
+        pattern='^(voltar_menu_funcoes|prosseguir_funcao_similar)$'
+    ))
+    
+    # Handler para cadastro em etapas (conversation) - ATUALIZADO
     cadastro_handler = ConversationHandler(
         entry_points=[
             CommandHandler("cadastrar", iniciar_cadastro_etapas),
@@ -834,16 +715,23 @@ def registrar_handlers_cadastro(application):
         states={
             SELECIONAR_IGREJA: [
                 # Ajustar padrão para reconhecer todos os tipos de callback de igreja
-                CallbackQueryHandler(processar_selecao_igreja, pattern=r'^igreja_')
+                CallbackQueryHandler(processar_selecao_igreja, pattern=r'^igreja_'),
+                # ADICIONADO: Callback para cancelar cadastro
+                CallbackQueryHandler(cancelar_cadastro, pattern=r'^cancelar_cadastro$')
             ],
             NOME: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, receber_nome)
             ],
             SELECIONAR_FUNCAO: [
-                CallbackQueryHandler(processar_selecao_funcao, pattern=r'^funcao_')
+                CallbackQueryHandler(processar_selecao_funcao, pattern=r'^funcao_'),
+                # ADICIONADO: Callbacks específicos para navegação e cancelamento
+                CallbackQueryHandler(processar_selecao_funcao, pattern=r'^(funcao_anterior|funcao_proxima)$'),
+                CallbackQueryHandler(cancelar_cadastro, pattern=r'^cancelar_cadastro$')
             ],
             FUNCAO: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, receber_funcao)
+                MessageHandler(filters.TEXT & ~filters.COMMAND, receber_funcao),
+                # ADICIONADO: Callbacks para função similar
+                CallbackQueryHandler(processar_callback_funcao_similar, pattern=r'^(voltar_menu_funcoes|prosseguir_funcao_similar)$')
             ],
             CONFIRMAR: [
                 CallbackQueryHandler(confirmar_etapas, pattern=r'^(confirmar|cancelar)_etapas$')
@@ -851,7 +739,9 @@ def registrar_handlers_cadastro(application):
         },
         fallbacks=[
             CommandHandler("cancelar", cancelar_cadastro),
-            CallbackQueryHandler(cancelar_cadastro, pattern=r'^cancelar_cadastro$')
+            CallbackQueryHandler(cancelar_cadastro, pattern=r'^cancelar_cadastro$'),
+            # ADICIONADO: Fallback para callbacks de função similar
+            CallbackQueryHandler(processar_callback_funcao_similar, pattern=r'^(voltar_menu_funcoes|prosseguir_funcao_similar)$')
         ],
         name="cadastro_conversation",
         persistent=False
