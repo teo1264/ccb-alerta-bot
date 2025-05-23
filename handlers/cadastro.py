@@ -4,7 +4,7 @@
 """
 Handlers para o processo de cadastro do CCB Alerta Bot
 Adaptado para usar SQLite para armazenamento persistente
-BLOCO 1/5: Imports, configurações e função inicial de cadastro
+BLOCO 1/5: Imports, configurações e funções de inicialização
 """
 
 import re
@@ -504,7 +504,7 @@ async def receber_funcao(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def processar_callback_funcao_similar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Processa os callbacks relacionados à detecção de função similar
-    VERSÃO CORRIGIDA: Garantir que funciona dentro do ConversationHandler
+    VERSÃO CORRIGIDA: Remove lógica de "prosseguir" - apenas volta ao menu
     """
     query = update.callback_query
     await query.answer()
@@ -515,7 +515,7 @@ async def processar_callback_funcao_similar(update: Update, context: ContextType
     if data == "voltar_menu_funcoes":
         # Limpar TODOS os dados temporários relacionados à função
         if 'cadastro_temp' in context.user_data:
-            # Remover dados da função digitada
+            # Remover dados da função digitada se existirem
             context.user_data['cadastro_temp'].pop('funcao_digitada_similar', None)
             # Resetar página de função para garantir estado limpo
             context.user_data['cadastro_temp']['pagina_funcao'] = 0
@@ -535,6 +535,112 @@ async def processar_callback_funcao_similar(update: Update, context: ContextType
     await mostrar_menu_funcoes(query, context)
     return SELECIONAR_FUNCAO
 
+async def confirmar_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Processa a confirmação do cadastro em etapas"""
+    query = update.callback_query
+    await query.answer()
+    
+    data = query.data
+    logger.info(f"Callback de confirmação: {data}")
+    
+    if data == "cancelar_etapas":
+        # Limpar dados do contexto
+        if 'cadastro_temp' in context.user_data:
+            del context.user_data['cadastro_temp']
+        
+        await query.edit_message_text(
+            " *A Paz de Deus!*\n\n"
+            "❌ *Cadastro cancelado!*\n\n"
+            "Você pode iniciar novamente quando quiser usando /cadastrar.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        return ConversationHandler.END
+    
+    # Obter dados do contexto
+    codigo = context.user_data['cadastro_temp'].get('codigo', '')
+    nome = context.user_data['cadastro_temp'].get('nome', '')
+    funcao = context.user_data['cadastro_temp'].get('funcao', '')
+    nome_igreja = context.user_data['cadastro_temp'].get('nome_igreja', '')
+    user_id = update.effective_user.id
+    username = update.effective_user.username or ""
+    
+    # Verificar se já existe cadastro exatamente igual
+    if verificar_cadastro_existente(codigo, nome, funcao):
+        await query.edit_message_text(
+            " *A Paz de Deus!*\n\n"
+            "⚠️ *Atenção!*\n\n"
+            f"Já existe um cadastro para a Casa de Oração *{codigo}* com o nome *{nome}* e função *{funcao}*.\n\n"
+            "Por favor, verifique os dados ou entre em contato com o administrador.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        # Limpar dados do contexto
+        if 'cadastro_temp' in context.user_data:
+            del context.user_data['cadastro_temp']
+        return ConversationHandler.END
+    
+    # Salvar cadastro usando a nova função SQLite
+    try:
+        sucesso, status = inserir_cadastro(codigo, nome, funcao, user_id, username)
+        
+        if not sucesso:
+            raise Exception(f"Falha ao inserir cadastro no banco de dados: {status}")
+        
+        # Sucesso
+        await query.edit_message_text(
+            f" *Projeto Débito Automático*\n\n"
+            f"✅ *Cadastro recebido com sucesso:*\n\n"
+            f"📍 *Código:* `{codigo}`\n"
+            f"🏢 *Casa:* `{nome_igreja}`\n"
+            f"👤 *Nome:* `{nome}`\n"
+            f"🔧 *Função:* `{funcao}`\n\n"
+            f"🗂️ Estamos em *fase de cadastro* dos irmãos responsáveis pelo acompanhamento das Contas de Consumo.\n"
+            f"📢 Assim que esta fase for concluída, os *alertas automáticos de consumo* começarão a ser enviados.\n\n"
+            f"_Deus te abençoe!_ 🙌",
+            parse_mode='Markdown'
+        )
+        
+    except Exception as e:
+        logger.error(f"Erro ao salvar cadastro: {str(e)}")
+        await query.edit_message_text(
+            " *A Paz de Deus!*\n\n"
+            "❌ *Houve um problema ao processar seu cadastro!*\n\n"
+            "Por favor, tente novamente mais tarde ou entre em contato com o administrador.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+    
+    # Limpar dados do contexto
+    if 'cadastro_temp' in context.user_data:
+        del context.user_data['cadastro_temp']
+    return ConversationHandler.END
+
+async def cancelar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancela o cadastro em qualquer etapa"""
+    # Limpar dados do contexto
+    if 'cadastro_temp' in context.user_data:
+        del context.user_data['cadastro_temp']
+    
+    # Verificar se é callback ou comando
+    if hasattr(update, 'callback_query'):
+        await update.callback_query.edit_message_text(
+            " *A Santa Paz de Deus!*\n\n"
+            "❌ *Cadastro cancelado!*\n\n"
+            "Você pode iniciar novamente quando quiser usando /cadastrar.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+    else:
+        await update.message.reply_text(
+            " *A Santa Paz de Deus!*\n\n"
+            "❌ *Cadastro cancelado!*\n\n"
+            "Você pode iniciar novamente quando quiser usando /cadastrar.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+    return ConversationHandler.END
+
 def registrar_handlers_cadastro(application):
     """
     Registra handlers relacionados ao cadastro
@@ -548,12 +654,6 @@ def registrar_handlers_cadastro(application):
         processar_aceite_lgpd_cadastro, 
         pattern='^aceitar_lgpd_cadastro$'
     ))
-    
-    # REMOVIDO: Handler externo que causava conflito
-    # application.add_handler(CallbackQueryHandler(
-    #     processar_callback_funcao_similar,
-    #     pattern='^(voltar_menu_funcoes|prosseguir_funcao_similar)$'
-    # ))
     
     # Handler para cadastro em etapas (conversation) - CORRIGIDO
     cadastro_handler = ConversationHandler(
