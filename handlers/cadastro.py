@@ -197,7 +197,7 @@ async def processar_selecao_igreja(update: Update, context: ContextTypes.DEFAULT
             await query.edit_message_text(
                 f" *A Paz de Deus!*\n\n"
                 f"✅ Casa de Oração selecionada: *{igreja['codigo']} - {igreja['nome']}*\n\n"
-                f"Agora, digite o nome do responsável:",
+                f"Agora, DIGITE O NOME DO RESPONSÁVEL:",
                 parse_mode='Markdown'
             )
             return NOME
