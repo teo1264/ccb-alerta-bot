@@ -161,6 +161,7 @@ def fazer_backup_banco():
 def salvar_responsavel(codigo_casa, nome, funcao, user_id, username):
     """
     Insere ou atualiza um responsável no banco
+    CORREÇÃO: Agora trata adequadamente casos onde mesmo nome/código têm função diferente
     
     Args:
         codigo_casa (str): Código da casa
@@ -180,26 +181,41 @@ def salvar_responsavel(codigo_casa, nome, funcao, user_id, username):
         with get_connection() as conn:
             cursor = conn.cursor()
             
-            # Verificar se já existe
-            cursor.execute(
-                "SELECT id FROM responsaveis WHERE codigo_casa = ? AND nome = ? AND funcao = ?",
-                (codigo_casa, nome, funcao)
-            )
+            # CORREÇÃO: Verificar se já existe cadastro com mesmo código + nome (independente da função)
+            cursor.execute('''
+            SELECT id, funcao, user_id FROM responsaveis 
+            WHERE UPPER(TRIM(codigo_casa)) = ? AND UPPER(TRIM(nome)) = ?
+            ''', (codigo_casa.strip().upper(), nome.strip().upper()))
             
-            registro = cursor.fetchone()
+            registro_existente = cursor.fetchone()
             
-            if registro:
-                # Atualizar registro existente
-                cursor.execute('''
-                UPDATE responsaveis 
-                SET user_id = ?, username = ?, ultima_atualizacao = ?
-                WHERE id = ?
-                ''', (user_id, username, agora, registro['id']))
+            if registro_existente:
+                # Já existe cadastro com mesmo código + nome
                 
-                conn.commit()
-                return True, "atualizado"
+                # Verificar se é o mesmo usuário tentando atualizar
+                if registro_existente['user_id'] == user_id:
+                    # Mesmo usuário atualizando sua própria função
+                    cursor.execute('''
+                    UPDATE responsaveis 
+                    SET funcao = ?, username = ?, ultima_atualizacao = ?
+                    WHERE id = ?
+                    ''', (funcao, username, agora, registro_existente['id']))
+                    
+                    conn.commit()
+                    
+                    if registro_existente['funcao'] != funcao:
+                        logger.info(f"Função atualizada: {nome} ({registro_existente['funcao']} → {funcao})")
+                        return True, f"função_atualizada|{registro_existente['funcao']}|{funcao}"
+                    else:
+                        return True, "dados_atualizados"
+                        
+                else:
+                    # Usuário diferente tentando cadastrar mesmo nome na mesma igreja
+                    logger.warning(f"Tentativa de cadastro duplicado: {codigo_casa} - {nome} (usuário {user_id})")
+                    return False, f"nome_ja_cadastrado|{registro_existente['funcao']}"
+            
             else:
-                # Inserir novo registro
+                # Não existe - inserir novo registro
                 cursor.execute('''
                 INSERT INTO responsaveis 
                 (codigo_casa, nome, funcao, user_id, username, data_cadastro, ultima_atualizacao)
@@ -215,20 +231,22 @@ def salvar_responsavel(codigo_casa, nome, funcao, user_id, username):
                 ))
                 
                 conn.commit()
+                logger.info(f"Novo cadastro inserido: {codigo_casa} - {nome} ({funcao})")
                 return True, "inserido"
                 
     except Exception as e:
         logger.error(f"Erro ao salvar responsável: {e}")
         return False, str(e)
 
-def verificar_cadastro_existente(codigo, nome, funcao):
+def verificar_cadastro_existente(codigo, nome, funcao=None):
     """
-    Verifica se já existe um cadastro com os mesmos dados
+    Verifica se já existe um cadastro com o mesmo código e nome
+    CORREÇÃO: Agora verifica apenas código + nome (independente da função)
     
     Args:
         codigo (str): Código da casa
         nome (str): Nome do responsável
-        funcao (str): Função do responsável
+        funcao (str, optional): Função do responsável (não usado na verificação)
         
     Returns:
         bool: True se existir, False caso contrário
@@ -240,20 +258,63 @@ def verificar_cadastro_existente(codigo, nome, funcao):
             # Normalizar para comparação (remover espaços extras e converter para maiúsculas)
             codigo_norm = codigo.strip().upper()
             nome_norm = nome.strip().upper()
-            funcao_norm = funcao.strip().upper()
             
+            # CORREÇÃO: Verificar apenas código + nome (sem função)
             cursor.execute('''
-            SELECT id FROM responsaveis 
+            SELECT id, funcao FROM responsaveis 
             WHERE UPPER(TRIM(codigo_casa)) = ? 
-              AND UPPER(TRIM(nome)) = ? 
-              AND UPPER(TRIM(funcao)) = ?
-            ''', (codigo_norm, nome_norm, funcao_norm))
+              AND UPPER(TRIM(nome)) = ?
+            ''', (codigo_norm, nome_norm))
             
-            return cursor.fetchone() is not None
+            resultado = cursor.fetchone()
+            
+            if resultado:
+                logger.info(f"Cadastro já existe: {codigo} - {nome} (função atual: {resultado['funcao']})")
+                return True
+            
+            return False
             
     except Exception as e:
         logger.error(f"Erro ao verificar cadastro existente: {e}")
         return False
+
+
+def verificar_cadastro_existente_detalhado(codigo, nome):
+    """
+    Verifica se já existe um cadastro e retorna detalhes
+    NOVA FUNÇÃO: Para fornecer informações detalhadas sobre cadastro existente
+    
+    Args:
+        codigo (str): Código da casa
+        nome (str): Nome do responsável
+        
+    Returns:
+        dict: Dados do cadastro existente ou None se não existir
+    """
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Normalizar para comparação
+            codigo_norm = codigo.strip().upper()
+            nome_norm = nome.strip().upper()
+            
+            cursor.execute('''
+            SELECT * FROM responsaveis 
+            WHERE UPPER(TRIM(codigo_casa)) = ? 
+              AND UPPER(TRIM(nome)) = ?
+            ''', (codigo_norm, nome_norm))
+            
+            resultado = cursor.fetchone()
+            
+            if resultado:
+                return dict(resultado)
+            
+            return None
+            
+    except Exception as e:
+        logger.error(f"Erro ao verificar cadastro existente detalhado: {e}")
+        return None
 
 def obter_cadastros_por_user_id(user_id):
     """
