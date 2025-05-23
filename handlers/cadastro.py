@@ -2,10 +2,11 @@
 # -*- coding: utf-8 -*-
 
 """
-Handlers para o processo de cadastro do CCB Alerta Bot
-Adaptado para usar SQLite para armazenamento persistente
+BLOCO 4/4: Imports atualizados e função de registro de handlers
+Adição dos imports necessários e atualização da função registrar_handlers_cadastro()
 """
 
+# Imports atualizados - adicionado 're' para validação de texto
 import re
 import math
 import logging
@@ -34,13 +35,149 @@ except ImportError:
         salvar_responsavel as inserir_cadastro,  # Usar a função correta
         obter_cadastros_por_user_id as obter_cadastro_por_user_id  # Usar a função correta
     )
-from handlers.data import IGREJAS, FUNCOES, agrupar_igrejas, agrupar_funcoes, obter_igreja_por_codigo
+
+# Import atualizado - adicionada função de detecção
+from handlers.data import (
+    IGREJAS, FUNCOES, agrupar_igrejas, agrupar_funcoes, 
+    obter_igreja_por_codigo, detectar_funcao_similar
+)
 
 # Logger
 logger = logging.getLogger(__name__)
 
 # Estados adicionais para a navegação nos menus
 SELECIONAR_IGREJA, SELECIONAR_FUNCAO = range(4, 6)
+
+def registrar_handlers_cadastro(application):
+    """
+    Registra handlers relacionados ao cadastro
+    BLOCO 4/4: Função atualizada com novos handlers
+    """
+    # Handler para cadastro manual via comando
+    application.add_handler(CommandHandler("cadastro", cadastro_comando))
+    
+    # Callback handler para aceite de LGPD no cadastro
+    application.add_handler(CallbackQueryHandler(
+        processar_aceite_lgpd_cadastro, 
+        pattern='^aceitar_lgpd_cadastro$'
+    ))
+    
+    # NOVO: Callback handler para função similar (fora do ConversationHandler)
+    application.add_handler(CallbackQueryHandler(
+        processar_callback_funcao_similar,
+        pattern='^(voltar_menu_funcoes|prosseguir_funcao_similar)$'
+    ))
+    
+    # Handler para cadastro em etapas (conversation) - ATUALIZADO
+    cadastro_handler = ConversationHandler(
+        entry_points=[
+            CommandHandler("cadastrar", iniciar_cadastro_etapas),
+            # Adicionar MessageHandler para processar clique no botão de menu (com ambos os formatos)
+            MessageHandler(filters.Regex(r"^(🖋️ Cadastrar Responsável|📝 CADASTRAR RESPONSÁVEL 📝)$"), iniciar_cadastro_etapas)
+        ],
+        states={
+            SELECIONAR_IGREJA: [
+                # Ajustar padrão para reconhecer todos os tipos de callback de igreja
+                CallbackQueryHandler(processar_selecao_igreja, pattern=r'^igreja_'),
+                # ADICIONADO: Callback para cancelar cadastro
+                CallbackQueryHandler(cancelar_cadastro, pattern=r'^cancelar_cadastro$')
+            ],
+            NOME: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, receber_nome)
+            ],
+            SELECIONAR_FUNCAO: [
+                CallbackQueryHandler(processar_selecao_funcao, pattern=r'^funcao_'),
+                # ADICIONADO: Callbacks específicos para navegação e cancelamento
+                CallbackQueryHandler(processar_selecao_funcao, pattern=r'^(funcao_anterior|funcao_proxima)$'),
+                CallbackQueryHandler(cancelar_cadastro, pattern=r'^cancelar_cadastro$')
+            ],
+            FUNCAO: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, receber_funcao),
+                # ADICIONADO: Callbacks para função similar
+                CallbackQueryHandler(processar_callback_funcao_similar, pattern=r'^(voltar_menu_funcoes|prosseguir_funcao_similar)$')
+            ],
+            CONFIRMAR: [
+                CallbackQueryHandler(confirmar_etapas, pattern=r'^(confirmar|cancelar)_etapas$')
+            ]
+        },
+        fallbacks=[
+            CommandHandler("cancelar", cancelar_cadastro),
+            CallbackQueryHandler(cancelar_cadastro, pattern=r'^cancelar_cadastro$'),
+            # ADICIONADO: Fallback para callbacks de função similar
+            CallbackQueryHandler(processar_callback_funcao_similar, pattern=r'^(voltar_menu_funcoes|prosseguir_funcao_similar)$')
+        ],
+        name="cadastro_conversation",
+        persistent=False
+    )
+    application.add_handler(cadastro_handler)
+
+# FUNÇÃO ADICIONAL: Atualização da função mostrar_menu_funcoes para remover botão "Outro"
+async def mostrar_menu_funcoes(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Mostra o menu de seleção de funções - ATUALIZADO SEM "Outro"
+    BLOCO 4/4: Remoção do botão "Outro", mantendo apenas "🔄 Outra Função"
+    """
+    # Agrupar funções em páginas
+    funcoes_paginadas = agrupar_funcoes()
+    pagina_atual = context.user_data['cadastro_temp'].get('pagina_funcao', 0)
+    
+    # Verificar limites da página
+    if pagina_atual >= len(funcoes_paginadas):
+        pagina_atual = 0
+    elif pagina_atual < 0:
+        pagina_atual = len(funcoes_paginadas) - 1
+    
+    context.user_data['cadastro_temp']['pagina_funcao'] = pagina_atual
+    
+    # Preparar botões para a página atual
+    keyboard = []
+    for funcao in funcoes_paginadas[pagina_atual]:
+        callback_data = f"funcao_{funcao}"
+        logger.info(f"Criando botão de função com callback_data: {callback_data}")
+        
+        keyboard.append([InlineKeyboardButton(
+            funcao,
+            callback_data=callback_data
+        )])
+    
+    # Adicionar botões de navegação
+    nav_buttons = []
+    if len(funcoes_paginadas) > 1:
+        nav_buttons.append(InlineKeyboardButton("⬅️ Anterior", callback_data="funcao_anterior"))
+        nav_buttons.append(InlineKeyboardButton("Próxima ➡️", callback_data="funcao_proxima"))
+    keyboard.append(nav_buttons)
+    
+    # ATUALIZADO: Apenas botão "🔄 Outra Função" (removido "Outro")
+    keyboard.append([InlineKeyboardButton("🔄 Outra Função", callback_data="funcao_outra")])
+    
+    # Botão para cancelar
+    keyboard.append([InlineKeyboardButton("❌ Cancelar", callback_data="cancelar_cadastro")])
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    # Criar ou editar mensagem dependendo do contexto
+    texto_mensagem = (
+        " *A Paz de Deus!*\n\n"
+        f"✅ Nome registrado: *{context.user_data['cadastro_temp']['nome']}*\n\n"
+        "Agora, selecione a função do responsável:\n\n"
+        f"📄 *Página {pagina_atual + 1}/{len(funcoes_paginadas)}*"
+    )
+    
+    # Verificar se é atualização ou primeira exibição
+    if isinstance(update, Update):
+        # Primeira exibição
+        await update.message.reply_text(
+            texto_mensagem,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+    else:
+        # Atualização via callback
+        await update.edit_message_text(
+            texto_mensagem,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
 
 async def iniciar_cadastro_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Inicia o processo de cadastro passo a passo"""
@@ -292,7 +429,10 @@ async def mostrar_menu_funcoes(update: Update, context: ContextTypes.DEFAULT_TYP
         )
 
 async def processar_selecao_funcao(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Processa a seleção ou navegação no menu de funções"""
+    """
+    Processa a seleção ou navegação no menu de funções
+    BLOCO 2/4: Mensagem melhorada para "Outra Função"
+    """
     query = update.callback_query
     await query.answer()
     
@@ -326,21 +466,30 @@ async def processar_selecao_funcao(update: Update, context: ContextTypes.DEFAULT
         return SELECIONAR_FUNCAO
     
     if data == "funcao_outra":
-        # Solicitar entrada manual da função
+        # Solicitar entrada manual da função - MENSAGEM MELHORADA
         await query.edit_message_text(
-            f" *A Santa Paz de Deus!*\n\n"
-            f"Por favor, digite a função do responsável (Exemplo: Cooperador, Diácono, etc.):",
+            " *A Santa Paz de Deus!*\n\n"
+            "✍️ **DIGITE A FUNÇÃO QUE VOCÊ EXERCE NA CASA DE ORAÇÃO:**\n\n"
+            "*(Exemplo: Patrimônio, Encarregado da Limpeza, Tesoureiro, Secretário, etc.)*\n\n"
+            "📝 *Observação:* Se sua função já estiver disponível nos botões acima, "
+            "será solicitado que você a selecione pelos botões.",
             parse_mode='Markdown'
         )
         return FUNCAO
     
-    # Selecionar função
+    # Selecionar função dos botões
     if data.startswith("funcao_"):
         funcao = data.replace("funcao_", "")
         
-        # Armazenar função
+        # Verificar se a função existe na lista oficial
+        if funcao not in FUNCOES:
+            logger.warning(f"Função não reconhecida selecionada: {funcao}")
+            await mostrar_menu_funcoes(query, context)
+            return SELECIONAR_FUNCAO
+        
+        # Armazenar função selecionada
         context.user_data['cadastro_temp']['funcao'] = funcao
-        logger.info(f"Função selecionada: {funcao}")
+        logger.info(f"Função selecionada dos botões: {funcao}")
         
         # Continuar para confirmação
         codigo = context.user_data['cadastro_temp']['codigo']
@@ -375,19 +524,58 @@ async def processar_selecao_funcao(update: Update, context: ContextTypes.DEFAULT
     return SELECIONAR_FUNCAO
 
 async def receber_funcao(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Recebe a função digitada manualmente e mostra resumo para confirmação"""
+    """
+    Recebe a função digitada manualmente e aplica validação inteligente
+    BLOCO 3/4: Implementação de detecção de similaridade e validação
+    """
     funcao = update.message.text.strip()
     
-    # Validação básica
+    # Validação básica - comprimento mínimo
     if len(funcao) < 3:
         await update.message.reply_text(
             "❌ Por favor, digite uma função válida com pelo menos 3 caracteres."
         )
         return FUNCAO
     
-    # Armazenar temporariamente
+    # Validação básica - não permitir apenas números ou caracteres especiais
+    if not re.search(r'[a-zA-ZÀ-ÿ]', funcao):
+        await update.message.reply_text(
+            "❌ Por favor, digite uma função válida que contenha letras."
+        )
+        return FUNCAO
+    
+    # VALIDAÇÃO INTELIGENTE - Detectar se função é similar às disponíveis nos botões
+    funcao_similar_encontrada, funcao_oficial = detectar_funcao_similar(funcao)
+    
+    if funcao_similar_encontrada:
+        # Função digitada é muito similar a uma função dos botões
+        keyboard = [
+            [
+                InlineKeyboardButton("🔄 Voltar ao Menu", callback_data="voltar_menu_funcoes"),
+                InlineKeyboardButton("✅ Prosseguir Assim Mesmo", callback_data="prosseguir_funcao_similar")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        # Armazenar temporariamente a função digitada para caso o usuário insista
+        context.user_data['cadastro_temp']['funcao_digitada_similar'] = funcao
+        
+        await update.message.reply_text(
+            f"⚠️ *Atenção!*\n\n"
+            f"Detectamos que você digitou: *\"{funcao}\"*\n\n"
+            f"Esta função parece ser similar a: *\"{funcao_oficial}\"*\n"
+            f"que já está disponível nos botões do menu.\n\n"
+            f"🔹 *Recomendação:* Use o botão do menu para selecionar *\"{funcao_oficial}\"*\n\n"
+            f"Ou, se realmente sua função é diferente, pode prosseguir com *\"{funcao}\"*.",
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+        return FUNCAO
+    
+    # Validação aprovada - função é realmente diferente das disponíveis
+    # Armazenar função digitada
     context.user_data['cadastro_temp']['funcao'] = funcao
-    logger.info(f"Função digitada: {funcao}")
+    logger.info(f"Função digitada e aprovada: {funcao}")
     
     # Preparar botões de confirmação
     keyboard = [
@@ -398,7 +586,7 @@ async def receber_funcao(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    # Extrair dados do cadastro
+    # Extrair dados do cadastro para confirmação
     codigo = context.user_data['cadastro_temp']['codigo']
     nome = context.user_data['cadastro_temp']['nome']
     nome_igreja = context.user_data['cadastro_temp']['nome_igreja']
@@ -415,6 +603,77 @@ async def receber_funcao(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode='Markdown'
     )
     return CONFIRMAR
+
+async def processar_callback_funcao_similar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Processa os callbacks relacionados à detecção de função similar
+    BLOCO 3/4: Handler para botões de função similar
+    """
+    query = update.callback_query
+    await query.answer()
+    
+    data = query.data
+    logger.info(f"Callback função similar recebido: {data}")
+    
+    if data == "voltar_menu_funcoes":
+        # Voltar para o menu de funções
+        # Limpar função digitada temporária
+        if 'funcao_digitada_similar' in context.user_data['cadastro_temp']:
+            del context.user_data['cadastro_temp']['funcao_digitada_similar']
+        
+        await mostrar_menu_funcoes(query, context)
+        return SELECIONAR_FUNCAO
+    
+    elif data == "prosseguir_funcao_similar":
+        # Usuário insiste em usar a função digitada
+        funcao_digitada = context.user_data['cadastro_temp'].get('funcao_digitada_similar', '')
+        
+        if not funcao_digitada:
+            # Erro - não há função armazenada
+            await query.edit_message_text(
+                "❌ *Erro interno!*\n\n"
+                "Por favor, tente novamente digitando sua função.",
+                parse_mode='Markdown'
+            )
+            return FUNCAO
+        
+        # Armazenar a função digitada como definitiva
+        context.user_data['cadastro_temp']['funcao'] = funcao_digitada
+        logger.info(f"Usuário insistiu em usar função digitada: {funcao_digitada}")
+        
+        # Limpar função temporária
+        del context.user_data['cadastro_temp']['funcao_digitada_similar']
+        
+        # Preparar botões de confirmação
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ Confirmar Cadastro", callback_data="confirmar_etapas"),
+                InlineKeyboardButton("❌ Cancelar", callback_data="cancelar_etapas")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        # Extrair dados do cadastro para confirmação
+        codigo = context.user_data['cadastro_temp']['codigo']
+        nome = context.user_data['cadastro_temp']['nome']
+        nome_igreja = context.user_data['cadastro_temp']['nome_igreja']
+        
+        await query.edit_message_text(
+            " *A Paz de Deus!*\n\n"
+            "📝 *Confirme os dados do cadastro:*\n\n"
+            f"📍 *Código:* `{codigo}`\n"
+            f"🏢 *Casa:* `{nome_igreja}`\n"
+            f"👤 *Nome:* `{nome}`\n"
+            f"🔧 *Função:* `{funcao_digitada}`\n\n"
+            "Os dados estão corretos?",
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+        return CONFIRMAR
+    
+    # Fallback
+    logger.warning(f"Callback de função similar não reconhecido: {data}")
+    return FUNCAO
 
 async def confirmar_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Processa a confirmação do cadastro em etapas"""
