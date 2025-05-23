@@ -430,7 +430,7 @@ async def processar_selecao_funcao(update: Update, context: ContextTypes.DEFAULT
 async def receber_funcao(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Recebe a função digitada manualmente e aplica validação inteligente
-    VERSÃO CORRIGIDA: Implementação completa de detecção de similaridade
+    VERSÃO CORRIGIDA: Remove opção "Prosseguir Assim Mesmo" - OBRIGA volta ao menu
     """
     funcao = update.message.text.strip()
     
@@ -452,25 +452,18 @@ async def receber_funcao(update: Update, context: ContextTypes.DEFAULT_TYPE):
     funcao_similar_encontrada, funcao_oficial = detectar_funcao_similar(funcao)
     
     if funcao_similar_encontrada:
-        # Função digitada é muito similar a uma função dos botões
+        # Função digitada é similar a uma função dos botões - OBRIGAR volta ao menu
         keyboard = [
-            [
-                InlineKeyboardButton("🔄 Voltar ao Menu", callback_data="voltar_menu_funcoes"),
-                InlineKeyboardButton("✅ Prosseguir Assim Mesmo", callback_data="prosseguir_funcao_similar")
-            ]
+            [InlineKeyboardButton("🔄 Voltar ao Menu de Funções", callback_data="voltar_menu_funcoes")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        # Armazenar temporariamente a função digitada para caso o usuário insista
-        context.user_data['cadastro_temp']['funcao_digitada_similar'] = funcao
-        
         await update.message.reply_text(
-            f"⚠️ *Atenção!*\n\n"
-            f"Detectamos que você digitou: *\"{funcao}\"*\n\n"
-            f"Esta função parece ser similar a: *\"{funcao_oficial}\"*\n"
+            f"⚠️ *Função já disponível nos botões!*\n\n"
+            f"Você digitou: *\"{funcao}\"*\n\n"
+            f"Esta função é similar a: *\"{funcao_oficial}\"*\n"
             f"que já está disponível nos botões do menu.\n\n"
-            f"🔹 *Recomendação:* Use o botão do menu para selecionar *\"{funcao_oficial}\"*\n\n"
-            f"Ou, se realmente sua função é diferente, pode prosseguir com *\"{funcao}\"*.",
+            f"🔹 *Por favor, use o botão do menu para selecionar* *\"{funcao_oficial}\"*",
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
@@ -511,7 +504,7 @@ async def receber_funcao(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def processar_callback_funcao_similar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Processa os callbacks relacionados à detecção de função similar
-    VERSÃO CORRIGIDA: Handler completo para botões de função similar
+    VERSÃO CORRIGIDA: Remove lógica de "prosseguir" - apenas volta ao menu
     """
     query = update.callback_query
     await query.answer()
@@ -520,64 +513,24 @@ async def processar_callback_funcao_similar(update: Update, context: ContextType
     logger.info(f"Callback função similar recebido: {data}")
     
     if data == "voltar_menu_funcoes":
-        # Voltar para o menu de funções
-        # Limpar função digitada temporária
-        if 'funcao_digitada_similar' in context.user_data['cadastro_temp']:
+        # Limpar TODOS os dados temporários relacionados à função
+        if 'funcao_digitada_similar' in context.user_data.get('cadastro_temp', {}):
             del context.user_data['cadastro_temp']['funcao_digitada_similar']
         
+        # Resetar página de função para garantir estado limpo
+        context.user_data['cadastro_temp']['pagina_funcao'] = 0
+        
+        # Voltar para o menu de funções com estado limpo
         await mostrar_menu_funcoes(query, context)
         return SELECIONAR_FUNCAO
     
-    elif data == "prosseguir_funcao_similar":
-        # Usuário insiste em usar a função digitada
-        funcao_digitada = context.user_data['cadastro_temp'].get('funcao_digitada_similar', '')
-        
-        if not funcao_digitada:
-            # Erro - não há função armazenada
-            await query.edit_message_text(
-                "❌ *Erro interno!*\n\n"
-                "Por favor, tente novamente digitando sua função.",
-                parse_mode='Markdown'
-            )
-            return FUNCAO
-        
-        # Armazenar a função digitada como definitiva
-        context.user_data['cadastro_temp']['funcao'] = funcao_digitada
-        logger.info(f"Usuário insistiu em usar função digitada: {funcao_digitada}")
-        
-        # Limpar função temporária
-        del context.user_data['cadastro_temp']['funcao_digitada_similar']
-        
-        # Preparar botões de confirmação
-        keyboard = [
-            [
-                InlineKeyboardButton("✅ Confirmar Cadastro", callback_data="confirmar_etapas"),
-                InlineKeyboardButton("❌ Cancelar", callback_data="cancelar_etapas")
-            ]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        # Extrair dados do cadastro para confirmação
-        codigo = context.user_data['cadastro_temp']['codigo']
-        nome = context.user_data['cadastro_temp']['nome']
-        nome_igreja = context.user_data['cadastro_temp']['nome_igreja']
-        
-        await query.edit_message_text(
-            " *A Paz de Deus!*\n\n"
-            "📝 *Confirme os dados do cadastro:*\n\n"
-            f"📍 *Código:* `{codigo}`\n"
-            f"🏢 *Casa:* `{nome_igreja}`\n"
-            f"👤 *Nome:* `{nome}`\n"
-            f"🔧 *Função:* `{funcao_digitada}`\n\n"
-            "Os dados estão corretos?",
-            reply_markup=reply_markup,
-            parse_mode='Markdown'
-        )
-        return CONFIRMAR
-    
-    # Fallback
+    # Fallback - não deveria chegar aqui na versão corrigida
     logger.warning(f"Callback de função similar não reconhecido: {data}")
-    return FUNCAO
+    
+    # Forçar volta ao menu de funções em caso de erro
+    context.user_data['cadastro_temp']['pagina_funcao'] = 0
+    await mostrar_menu_funcoes(query, context)
+    return SELECIONAR_FUNCAO
 
 async def confirmar_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Processa a confirmação do cadastro em etapas"""
