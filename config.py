@@ -3,9 +3,10 @@
 """
 Configurações globais para o CCB Alerta Bot
 Adaptado para usar SQLite e disco persistente no Render
-VERSÃO CORRIGIDA: Webhook/Polling automático + configurações existentes
+VERSÃO SEGURA: Token apenas via variável de ambiente
 """
 import os
+import sys
 import logging
 
 # Configurar o log
@@ -52,15 +53,26 @@ def detectar_ambiente():
     
     return ambiente
 
-# ==================== CONFIGURAÇÕES PRINCIPAIS (SUAS) ====================
+# ==================== CONFIGURAÇÕES PRINCIPAIS (SEGURAS) ====================
 
-# Token do Bot (MANTENDO SEU TOKEN + variável de ambiente)
-TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', "7773179413:AAHqJp-NBPPs6YrSV1kB5-q4vkV3tjDFyy4")
+# Token do Bot - APENAS variável de ambiente (SEGURO)
+TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
 
-# Detectar ambiente atual (NOVO)
+# Verificação obrigatória do token
+if not TOKEN:
+    logger.error("❌ ERRO CRÍTICO: TELEGRAM_BOT_TOKEN não configurado!")
+    logger.error("Configure a variável de ambiente antes de executar o bot.")
+    logger.error("No Render: Configure em Environment Variables")
+    logger.error("Local: export TELEGRAM_BOT_TOKEN='seu_token_aqui'")
+    sys.exit(1)
+
+# Log de confirmação (sem mostrar o token)
+logger.info("✅ Token do bot carregado da variável de ambiente")
+
+# Detectar ambiente atual
 AMBIENTE = detectar_ambiente()
 
-# Configurações do webhook (NOVO)
+# Configurações do webhook
 WEBHOOK_CONFIG = {
     'usar_webhook': AMBIENTE['usar_webhook'],
     'webhook_url': AMBIENTE['webhook_url'],
@@ -69,34 +81,46 @@ WEBHOOK_CONFIG = {
     'host': AMBIENTE['host']
 }
 
-# Log das configurações detectadas (NOVO)
+# Log das configurações detectadas
 logger.info(f"Ambiente detectado: {AMBIENTE['plataforma'].upper()}")
 logger.info(f"Usar webhook: {AMBIENTE['usar_webhook']}")
 if AMBIENTE['webhook_url']:
     logger.info(f"Webhook URL: {AMBIENTE['webhook_url']}")
 
-# ==================== SUAS CONFIGURAÇÕES ORIGINAIS ====================
+# ==================== CONFIGURAÇÕES DE ADMINISTRADORES ====================
 
-# Caminho para o disco persistente no Render (MANTIDO)
+# IDs de administradores - também via variável de ambiente (SEGURO)
+admin_ids_env = os.environ.get('ADMIN_IDS', '')
+if admin_ids_env:
+    try:
+        ADMIN_IDS = [int(id.strip()) for id in admin_ids_env.split(',') if id.strip().isdigit()]
+        logger.info(f"✅ {len(ADMIN_IDS)} administradores carregados da variável de ambiente")
+    except ValueError:
+        logger.warning("⚠️ Erro ao processar ADMIN_IDS. Usando lista vazia.")
+        ADMIN_IDS = []
+else:
+    logger.warning("⚠️ ADMIN_IDS não configurado. Nenhum administrador será adicionado.")
+    ADMIN_IDS = []
+
+# ==================== CONFIGURAÇÕES DE ARMAZENAMENTO ====================
+
+# Caminho para o disco persistente no Render
 RENDER_DISK_PATH = os.environ.get("RENDER_DISK_PATH", "/opt/render/project/disk")
 
-# Diretório de dados compartilhado (MANTIDO)
+# Diretório de dados compartilhado
 DATA_DIR = os.path.join(RENDER_DISK_PATH, "shared_data")
 
-# Caminho para o banco de dados SQLite (MANTIDO)
+# Caminho para o banco de dados SQLite
 DATABASE_PATH = os.path.join(DATA_DIR, "ccb_alerta_bot.db")
 
-# IDs de administradores (MANTIDO)
-ADMIN_IDS = [5876346562]  # Adicione aqui os IDs dos administradores
-
-# Diretório temporário (MANTIDO)
+# Diretório temporário
 TEMP_DIR = os.path.join(DATA_DIR, "temp")
 
-# Estados para a conversa de cadastro em etapas (MANTIDO)
+# Estados para a conversa de cadastro em etapas
 CODIGO, NOME, FUNCAO, CONFIRMAR = range(4)
 
 def verificar_diretorios():
-    """Garante que os diretórios necessários existam (MANTIDO)"""
+    """Garante que os diretórios necessários existam"""
     # Garantir que o diretório de dados existe
     os.makedirs(DATA_DIR, exist_ok=True)
     
@@ -109,7 +133,7 @@ def verificar_diretorios():
     logger.info(f"Banco de dados será armazenado em: {DATABASE_PATH}")
 
 def inicializar_sistema():
-    """Inicializa todos os componentes do sistema (MANTIDO + melhorado)"""
+    """Inicializa todos os componentes do sistema"""
     global ADMIN_IDS
     
     # Garantir que os diretórios existam antes de inicializar
@@ -125,23 +149,26 @@ def inicializar_sistema():
     else:
         logger.error(f"Falha ao inicializar banco de dados em {DATABASE_PATH}")
     
-    # Inicializar administradores padrão
-    logger.info("Configurando administradores...")
-    try:
-        count = inicializar_admins_padrao(ADMIN_IDS)
-        logger.info(f"{count} administradores padrão configurados")
-    
-        # Carregar lista atual de administradores
-        admins = listar_admins()
-        if admins:
-            ADMIN_IDS = admins
-            logger.info(f"Total de administradores: {len(ADMIN_IDS)}")
-        else:
-            logger.warning("Não foi possível carregar administradores do banco de dados")
-    except Exception as e:
-        logger.error(f"Erro ao configurar administradores: {str(e)}")
+    # Inicializar administradores padrão (se houver)
+    if ADMIN_IDS:
+        logger.info("Configurando administradores...")
+        try:
+            count = inicializar_admins_padrao(ADMIN_IDS)
+            logger.info(f"{count} administradores padrão configurados")
+        
+            # Carregar lista atual de administradores
+            admins = listar_admins()
+            if admins:
+                ADMIN_IDS = admins
+                logger.info(f"Total de administradores: {len(ADMIN_IDS)}")
+            else:
+                logger.warning("Não foi possível carregar administradores do banco de dados")
+        except Exception as e:
+            logger.error(f"Erro ao configurar administradores: {str(e)}")
+    else:
+        logger.info("Nenhum administrador configurado via ADMIN_IDS")
 
-# ==================== CONFIGURAÇÕES ADICIONAIS (NOVO) ====================
+# ==================== CONFIGURAÇÕES ADICIONAIS ====================
 
 # Configurações para produção
 PRODUCTION_CONFIG = {
