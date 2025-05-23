@@ -30,7 +30,12 @@ def detectar_ambiente():
         'webhook_url': None
     }
     
-    # Detectar Render
+    # FORÇAR POLLING se variável estiver definida
+    if os.environ.get('FORCE_POLLING'):
+        logger.info("🔄 FORCE_POLLING ativado - usando polling em vez de webhook")
+        return ambiente
+    
+    # Detectar Render (código original)
     if os.environ.get('RENDER'):
         ambiente['plataforma'] = 'render'
         ambiente['usar_webhook'] = True
@@ -52,7 +57,7 @@ def detectar_ambiente():
         ambiente['url_base'] = webhook_url_manual.replace('/webhook', '')
     
     return ambiente
-
+    
 # ==================== CONFIGURAÇÕES PRINCIPAIS (SEGURAS) ====================
 
 # Token do Bot - APENAS variável de ambiente (SEGURO)
