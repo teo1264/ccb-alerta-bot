@@ -1,9 +1,11 @@
+# ARQUIVO: utils/__init__.py
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 """
 Pacote de utilitários para o CCB Alerta Bot
 Versão corrigida para compatibilidade com SQLite
+CORREÇÃO: Adicionada exportação da nova função verificar_cadastro_existente_detalhado
 """
 
 # Importar todas as funções necessárias para disponibilizar no namespace do pacote
@@ -43,6 +45,7 @@ from .database import (
     # Funções de responsáveis/cadastros
     salvar_responsavel,
     verificar_cadastro_existente as db_verificar_cadastro_existente,
+    verificar_cadastro_existente_detalhado,  # NOVA FUNÇÃO ADICIONADA
     buscar_responsavel_por_id,
     buscar_responsaveis_por_codigo,
     listar_todos_responsaveis,
@@ -103,6 +106,7 @@ __all__ = [
     # Responsáveis/cadastros
     'salvar_responsavel',
     'inserir_cadastro',  # Alias
+    'verificar_cadastro_existente_detalhado',  # NOVA FUNÇÃO ADICIONADA
     'buscar_responsavel_por_id',
     'buscar_responsaveis_por_codigo',
     'listar_todos_responsaveis',
