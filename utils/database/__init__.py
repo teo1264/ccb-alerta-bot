@@ -1,8 +1,10 @@
+# ARQUIVO: utils/database/__init__.py
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 """
 Submódulo de acesso ao banco de dados para o CCB Alerta Bot
+CORREÇÃO: Adicionada exportação da nova função verificar_cadastro_existente_detalhado
 """
 
 # Importar todas as funções para o namespace do pacote
@@ -13,6 +15,7 @@ from .database import (
     fazer_backup_banco,
     salvar_responsavel,
     verificar_cadastro_existente,
+    verificar_cadastro_existente_detalhado,  # NOVA FUNÇÃO ADICIONADA
     obter_cadastros_por_user_id,
     remover_cadastros_por_user_id,
     buscar_responsaveis_por_codigo,
@@ -21,7 +24,7 @@ from .database import (
     remover_responsavel,
     remover_responsavel_especifico,
     editar_responsavel,
-    limpar_todos_responsaveis,  # Função que estava faltando
+    limpar_todos_responsaveis,
     verificar_admin,
     listar_admins,
     adicionar_admin,
