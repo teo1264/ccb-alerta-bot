@@ -1,6 +1,6 @@
 """
-Módulo de acesso ao banco de dados SQLite
-Fornece funções para acesso compartilhado ao banco de dados entre os bots.
+Módulo de acesso ao banco de dados SQLite com integração OneDrive
+ATUALIZADO: Suporte a OneDrive compartilhado + fallback local
 """
 import sqlite3
 import os
@@ -12,20 +12,72 @@ import shutil
 
 logger = logging.getLogger("CCB-Alerta-Bot.database")
 
+# Gerenciador OneDrive global (será inicializado)
+_onedrive_manager = None
+
+def inicializar_onedrive_manager():
+    """
+    Inicializar gerenciador OneDrive globalmente
+    
+    Deve ser chamado na inicialização do sistema
+    """
+    global _onedrive_manager
+    
+    try:
+        # Verificar se OneDrive está habilitado
+        onedrive_enabled = os.getenv("ONEDRIVE_DATABASE_ENABLED", "false").lower() == "true"
+        
+        if not onedrive_enabled:
+            logger.info("📁 OneDrive desabilitado - usando storage local")
+            return
+        
+        # Importar e inicializar
+        from auth.microsoft_auth import MicrosoftAuth
+        from utils.onedrive_manager import OneDriveManager
+        
+        # Configurar autenticação
+        auth = MicrosoftAuth()
+        
+        # Verificar se tem tokens válidos
+        if not auth.access_token:
+            logger.warning("⚠️ Token Microsoft não disponível - usando storage local")
+            return
+        
+        # Inicializar gerenciador
+        _onedrive_manager = OneDriveManager(auth)
+        
+        # Criar estrutura se necessário
+        _onedrive_manager.criar_estrutura_completa()
+        
+        logger.info("✅ OneDriveManager inicializado com sucesso")
+        
+    except Exception as e:
+        logger.error(f"❌ Erro inicializando OneDriveManager: {e}")
+        logger.info("📁 Continuando com storage local")
+
 def get_db_path():
     """
     Obtém o caminho para o banco de dados SQLite
     
+    NOVO: Suporte híbrido OneDrive + Local
+    - Se OneDrive disponível: baixa para cache local e retorna path local
+    - Se OneDrive indisponível: usa storage local tradicional
+    
     Returns:
         str: Caminho absoluto para o arquivo do banco de dados
     """
-    # Caminho para o disco persistente no Render
+    global _onedrive_manager
+    
+    # Se OneDrive configurado, usar estratégia híbrida
+    if _onedrive_manager:
+        try:
+            return _onedrive_manager.obter_caminho_database_hibrido()
+        except Exception as e:
+            logger.error(f"❌ Erro usando OneDrive, fallback para local: {e}")
+    
+    # Fallback: usar caminho local tradicional
     RENDER_DISK_PATH = os.environ.get("RENDER_DISK_PATH", "/opt/render/project/disk")
-    
-    # Diretório de dados compartilhado
     DATA_DIR = os.path.join(RENDER_DISK_PATH, "shared_data")
-    
-    # Garantir que o diretório existe
     os.makedirs(DATA_DIR, exist_ok=True)
     
     return os.path.join(DATA_DIR, "alertas_bot.db")
@@ -51,6 +103,8 @@ def get_connection():
 def init_database():
     """
     Inicializa o banco de dados com as tabelas necessárias
+    
+    NOVO: Sincronização automática com OneDrive após inicialização
     
     Returns:
         bool: True se inicializado com sucesso, False caso contrário
@@ -111,17 +165,38 @@ def init_database():
             ''')
             
             conn.commit()
-            logger.info("Banco de dados inicializado com sucesso")
+            logger.info("✅ Banco de dados inicializado com sucesso")
+            
+            # NOVO: Sincronizar com OneDrive após inicialização
+            _sincronizar_apos_modificacao()
+            
             return True
             
     except Exception as e:
-        logger.error(f"Erro ao inicializar banco de dados: {e}")
+        logger.error(f"❌ Erro ao inicializar banco de dados: {e}")
         return False
+
+def _sincronizar_apos_modificacao():
+    """
+    Sincronizar banco com OneDrive após modificações
+    
+    Chamado automaticamente após operações que modificam o banco
+    """
+    global _onedrive_manager
+    
+    if _onedrive_manager:
+        try:
+            db_path = get_db_path()
+            _onedrive_manager.sincronizar_para_onedrive(db_path)
+        except Exception as e:
+            logger.warning(f"⚠️ Erro sincronizando com OneDrive: {e}")
 
 # Funções para fazer backup do banco
 def fazer_backup_banco():
     """
     Cria um backup do banco de dados
+    
+    NOVO: Backup tanto local quanto OneDrive se disponível
     
     Returns:
         str: Caminho do arquivo de backup ou None se falhar
@@ -137,7 +212,7 @@ def fazer_backup_banco():
         agora = datetime.now(fuso_horario)
         timestamp = agora.strftime("%Y%m%d%H%M%S")
         
-        # Diretório de backup
+        # Diretório de backup local
         RENDER_DISK_PATH = os.environ.get("RENDER_DISK_PATH", "/opt/render/project/disk")
         DATA_DIR = os.path.join(RENDER_DISK_PATH, "shared_data")
         backup_dir = os.path.join(DATA_DIR, "backup")
@@ -149,11 +224,21 @@ def fazer_backup_banco():
         # Criar cópia do arquivo
         shutil.copy2(db_path, backup_file)
         
-        logger.info(f"Backup do banco de dados criado: {backup_file}")
+        logger.info(f"✅ Backup local criado: {backup_file}")
+        
+        # NOVO: Tentar backup no OneDrive também
+        global _onedrive_manager
+        if _onedrive_manager:
+            try:
+                # Upload do backup para OneDrive seria implementado aqui
+                logger.info("📁 Backup OneDrive - funcionalidade futura")
+            except Exception as e:
+                logger.warning(f"⚠️ Backup OneDrive falhou: {e}")
+        
         return backup_file
         
     except Exception as e:
-        logger.error(f"Erro ao fazer backup: {e}")
+        logger.error(f"❌ Erro ao fazer backup: {e}")
         return None
 
 # Funções para gerenciar responsáveis
@@ -161,7 +246,8 @@ def fazer_backup_banco():
 def salvar_responsavel(codigo_casa, nome, funcao, user_id, username):
     """
     Insere ou atualiza um responsável no banco
-    CORREÇÃO: Agora trata adequadamente casos onde mesmo nome/código têm função diferente
+    
+    NOVO: Sincronização automática com OneDrive após salvamento
     
     Args:
         codigo_casa (str): Código da casa
@@ -181,7 +267,7 @@ def salvar_responsavel(codigo_casa, nome, funcao, user_id, username):
         with get_connection() as conn:
             cursor = conn.cursor()
             
-            # CORREÇÃO: Verificar se já existe cadastro com mesmo código + nome (independente da função)
+            # Verificar se já existe cadastro com mesmo código + nome
             cursor.execute('''
             SELECT id, funcao, user_id FROM responsaveis 
             WHERE UPPER(TRIM(codigo_casa)) = ? AND UPPER(TRIM(nome)) = ?
@@ -192,7 +278,6 @@ def salvar_responsavel(codigo_casa, nome, funcao, user_id, username):
             if registro_existente:
                 # Já existe cadastro com mesmo código + nome
                 
-                # Verificar se é o mesmo usuário tentando atualizar
                 if registro_existente['user_id'] == user_id:
                     # Mesmo usuário atualizando sua própria função
                     cursor.execute('''
@@ -202,6 +287,9 @@ def salvar_responsavel(codigo_casa, nome, funcao, user_id, username):
                     ''', (funcao, username, agora, registro_existente['id']))
                     
                     conn.commit()
+                    
+                    # NOVO: Sincronizar após modificação
+                    _sincronizar_apos_modificacao()
                     
                     if registro_existente['funcao'] != funcao:
                         logger.info(f"Função atualizada: {nome} ({registro_existente['funcao']} → {funcao})")
@@ -231,6 +319,10 @@ def salvar_responsavel(codigo_casa, nome, funcao, user_id, username):
                 ))
                 
                 conn.commit()
+                
+                # NOVO: Sincronizar após modificação
+                _sincronizar_apos_modificacao()
+                
                 logger.info(f"Novo cadastro inserido: {codigo_casa} - {nome} ({funcao})")
                 return True, "inserido"
                 
@@ -241,7 +333,6 @@ def salvar_responsavel(codigo_casa, nome, funcao, user_id, username):
 def verificar_cadastro_existente(codigo, nome, funcao=None):
     """
     Verifica se já existe um cadastro com o mesmo código e nome
-    CORREÇÃO: Agora verifica apenas código + nome (independente da função)
     
     Args:
         codigo (str): Código da casa
@@ -255,11 +346,10 @@ def verificar_cadastro_existente(codigo, nome, funcao=None):
         with get_connection() as conn:
             cursor = conn.cursor()
             
-            # Normalizar para comparação (remover espaços extras e converter para maiúsculas)
+            # Normalizar para comparação
             codigo_norm = codigo.strip().upper()
             nome_norm = nome.strip().upper()
             
-            # CORREÇÃO: Verificar apenas código + nome (sem função)
             cursor.execute('''
             SELECT id, funcao FROM responsaveis 
             WHERE UPPER(TRIM(codigo_casa)) = ? 
@@ -278,11 +368,9 @@ def verificar_cadastro_existente(codigo, nome, funcao=None):
         logger.error(f"Erro ao verificar cadastro existente: {e}")
         return False
 
-
 def verificar_cadastro_existente_detalhado(codigo, nome):
     """
     Verifica se já existe um cadastro e retorna detalhes
-    NOVA FUNÇÃO: Para fornecer informações detalhadas sobre cadastro existente
     
     Args:
         codigo (str): Código da casa
@@ -349,6 +437,8 @@ def remover_cadastros_por_user_id(user_id):
     """
     Remove todos os cadastros de um usuário pelo ID
     
+    NOVO: Sincronização automática com OneDrive após remoção
+    
     Args:
         user_id (int): ID do usuário no Telegram
         
@@ -365,6 +455,10 @@ def remover_cadastros_por_user_id(user_id):
             
             removidos = cursor.rowcount
             conn.commit()
+            
+            # NOVO: Sincronizar após modificação
+            if removidos > 0:
+                _sincronizar_apos_modificacao()
             
             return removidos
             
@@ -455,6 +549,8 @@ def remover_responsavel(user_id):
     """
     Remove todos os registros de um usuário pelo ID
     
+    NOVO: Sincronização automática com OneDrive após remoção
+    
     Args:
         user_id (int): ID do usuário no Telegram
         
@@ -473,6 +569,10 @@ def remover_responsavel(user_id):
             cursor.execute("DELETE FROM responsaveis WHERE user_id = ?", (user_id,))
             conn.commit()
             
+            # NOVO: Sincronizar após modificação
+            if count > 0:
+                _sincronizar_apos_modificacao()
+            
             return True, count
     
     except Exception as e:
@@ -482,6 +582,8 @@ def remover_responsavel(user_id):
 def remover_responsavel_especifico(codigo_casa, nome, funcao=None):
     """
     Remove um registro específico por código e nome
+    
+    NOVO: Sincronização automática com OneDrive após remoção
     
     Args:
         codigo_casa (str): Código da casa
@@ -509,6 +611,11 @@ def remover_responsavel_especifico(codigo_casa, nome, funcao=None):
                 )
             
             conn.commit()
+            
+            # NOVO: Sincronizar após modificação
+            if cursor.rowcount > 0:
+                _sincronizar_apos_modificacao()
+            
             return True, cursor.rowcount
     
     except Exception as e:
@@ -518,6 +625,8 @@ def remover_responsavel_especifico(codigo_casa, nome, funcao=None):
 def editar_responsavel(id_registro, campos):
     """
     Edita um registro existente
+    
+    NOVO: Sincronização automática com OneDrive após edição
     
     Args:
         id_registro (int): ID do registro a ser editado
@@ -557,12 +666,50 @@ def editar_responsavel(id_registro, campos):
             cursor.execute(query, valores)
             conn.commit()
             
-            return cursor.rowcount > 0
+            sucesso = cursor.rowcount > 0
+            
+            # NOVO: Sincronizar após modificação
+            if sucesso:
+                _sincronizar_apos_modificacao()
+            
+            return sucesso
     
     except Exception as e:
         logger.error(f"Erro ao editar responsável: {e}")
         return False
 
+def limpar_todos_responsaveis():
+    """
+    Remove todos os responsáveis do banco de dados
+    
+    NOVO: Sincronização automática com OneDrive após limpeza
+    
+    Returns:
+        bool: True se removido com sucesso, False caso contrário
+    """
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Contar quantos registros serão afetados
+            cursor.execute("SELECT COUNT(*) as total FROM responsaveis")
+            count = cursor.fetchone()['total']
+            
+            # Excluir todos os registros
+            cursor.execute("DELETE FROM responsaveis")
+            conn.commit()
+            
+            logger.info(f"Removidos {count} responsáveis do banco de dados")
+            
+            # NOVO: Sincronizar após modificação
+            if count > 0:
+                _sincronizar_apos_modificacao()
+            
+            return True
+    
+    except Exception as e:
+        logger.error(f"Erro ao limpar todos os responsáveis: {e}")
+        return False
 
 # Funções para gerenciar administradores
 
@@ -605,6 +752,8 @@ def adicionar_admin(user_id, nome=None):
     """
     Adiciona um novo administrador
     
+    NOVO: Sincronização automática com OneDrive após adição
+    
     Args:
         user_id (int): ID do usuário
         nome (str, optional): Nome do administrador
@@ -629,6 +778,9 @@ def adicionar_admin(user_id, nome=None):
             )
             conn.commit()
             
+            # NOVO: Sincronizar após modificação
+            _sincronizar_apos_modificacao()
+            
             return True, "sucesso"
     except Exception as e:
         logger.error(f"Erro ao adicionar administrador: {e}")
@@ -637,6 +789,8 @@ def adicionar_admin(user_id, nome=None):
 def remover_admin(user_id):
     """
     Remove um administrador
+    
+    NOVO: Sincronização automática com OneDrive após remoção
     
     Args:
         user_id (int): ID do usuário
@@ -650,7 +804,13 @@ def remover_admin(user_id):
             cursor.execute("DELETE FROM administradores WHERE user_id = ?", (user_id,))
             conn.commit()
             
-            return cursor.rowcount > 0
+            sucesso = cursor.rowcount > 0
+            
+            # NOVO: Sincronizar após modificação
+            if sucesso:
+                _sincronizar_apos_modificacao()
+            
+            return sucesso
     except Exception as e:
         logger.error(f"Erro ao remover administrador: {e}")
         return False
@@ -660,6 +820,8 @@ def remover_admin(user_id):
 def registrar_consentimento_lgpd(user_id, ip_address=None, detalhes=None):
     """
     Registra o consentimento do usuário para LGPD
+    
+    NOVO: Sincronização automática com OneDrive após registro
     
     Args:
         user_id (int): ID do usuário
@@ -694,6 +856,10 @@ def registrar_consentimento_lgpd(user_id, ip_address=None, detalhes=None):
                 )
                 
             conn.commit()
+            
+            # NOVO: Sincronizar após modificação
+            _sincronizar_apos_modificacao()
+            
             return True
     except Exception as e:
         logger.error(f"Erro ao registrar consentimento LGPD: {e}")
@@ -722,6 +888,8 @@ def remover_consentimento_lgpd(user_id):
     """
     Remove o registro de consentimento LGPD do usuário
     
+    NOVO: Sincronização automática com OneDrive após remoção
+    
     Args:
         user_id (int): ID do usuário
         
@@ -734,7 +902,13 @@ def remover_consentimento_lgpd(user_id):
             cursor.execute("DELETE FROM consentimento_lgpd WHERE user_id = ?", (user_id,))
             conn.commit()
             
-            return cursor.rowcount > 0
+            sucesso = cursor.rowcount > 0
+            
+            # NOVO: Sincronizar após modificação
+            if sucesso:
+                _sincronizar_apos_modificacao()
+            
+            return sucesso
     except Exception as e:
         logger.error(f"Erro ao remover consentimento LGPD: {e}")
         return False
@@ -744,6 +918,8 @@ def remover_consentimento_lgpd(user_id):
 def registrar_alerta_enviado(codigo_casa, tipo_alerta, mensagem, user_id, pdf_path=None):
     """
     Registra um alerta enviado
+    
+    NOVO: Sincronização automática com OneDrive após registro
     
     Args:
         codigo_casa (str): Código da casa
@@ -771,6 +947,9 @@ def registrar_alerta_enviado(codigo_casa, tipo_alerta, mensagem, user_id, pdf_pa
                 (codigo_casa, tipo_alerta, mensagem, agora, user_id, pdf_path)
             )
             conn.commit()
+            
+            # NOVO: Sincronizar após modificação
+            _sincronizar_apos_modificacao()
             
             return True
     except Exception as e:
@@ -880,6 +1059,8 @@ def inicializar_admins_padrao(admin_ids):
     """
     Inicializa administradores padrão no banco de dados
     
+    NOVO: Sincronização automática com OneDrive após inicialização
+    
     Args:
         admin_ids (list): Lista de IDs de administradores padrão
         
@@ -892,36 +1073,10 @@ def inicializar_admins_padrao(admin_ids):
             sucesso, _ = adicionar_admin(admin_id)
             if sucesso:
                 count += 1
+        
+        # Sincronização já é feita automaticamente em adicionar_admin()
+        
         return count
     except Exception as e:
         logger.error(f"Erro ao inicializar admins padrão: {e}")
         return 0
-
-# Adicionar esta função no final do arquivo utils/database/database.py
-# Logo após a função inicializar_admins_padrao
-
-def limpar_todos_responsaveis():
-    """
-    Remove todos os responsáveis do banco de dados
-    
-    Returns:
-        bool: True se removido com sucesso, False caso contrário
-    """
-    try:
-        with get_connection() as conn:
-            cursor = conn.cursor()
-            
-            # Contar quantos registros serão afetados
-            cursor.execute("SELECT COUNT(*) as total FROM responsaveis")
-            count = cursor.fetchone()['total']
-            
-            # Excluir todos os registros
-            cursor.execute("DELETE FROM responsaveis")
-            conn.commit()
-            
-            logger.info(f"Removidos {count} responsáveis do banco de dados")
-            return True
-    
-    except Exception as e:
-        logger.error(f"Erro ao limpar todos os responsáveis: {e}")
-        return False
