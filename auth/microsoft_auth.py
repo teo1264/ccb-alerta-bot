@@ -46,7 +46,7 @@ class MicrosoftAuth:
             raise ValueError("❌ MICROSOFT_CLIENT_ID não configurado!")
         
         # Caminhos para tokens (persistent disk prioritário - MESMO PATH BRK)
-        self.token_file_persistent = "/opt/render/project/storage/token_bot.json"
+        self.token_file_persistent = "/opt/render/project/disk/shared_data/token_bot.json"
         self.token_file_local = "token_bot.json"
         
         # DEBUG: Log dos caminhos
