@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Configurações globais para o CCB Alerta Bot
-Adaptado para usar SQLite e disco persistente no Render
+ATUALIZADO: Suporte a OneDrive compartilhado + fallback local
 VERSÃO SEGURA: Token apenas via variável de ambiente
 """
 import os
@@ -107,16 +107,41 @@ else:
     logger.warning("⚠️ ADMIN_IDS não configurado. Nenhum administrador será adicionado.")
     ADMIN_IDS = []
 
+# ==================== CONFIGURAÇÕES ONEDRIVE (NOVAS) ====================
+
+# Configurações Microsoft para OneDrive
+MICROSOFT_CLIENT_ID = os.environ.get('MICROSOFT_CLIENT_ID')
+MICROSOFT_TENANT_ID = os.environ.get('MICROSOFT_TENANT_ID', 'consumers')
+
+# ID da pasta 'Alerta' no OneDrive (opcional - será descoberto automaticamente)
+ONEDRIVE_ALERTA_ID = os.environ.get('ONEDRIVE_ALERTA_ID')
+
+# Feature flags para OneDrive
+ONEDRIVE_DATABASE_ENABLED = os.environ.get('ONEDRIVE_DATABASE_ENABLED', 'false').lower() == 'true'
+
+# Log das configurações OneDrive
+if MICROSOFT_CLIENT_ID:
+    logger.info("✅ Microsoft Client ID configurado")
+    logger.info(f"   Tenant: {MICROSOFT_TENANT_ID}")
+    logger.info(f"   OneDrive Database: {'✅ Habilitado' if ONEDRIVE_DATABASE_ENABLED else '❌ Desabilitado'}")
+    if ONEDRIVE_ALERTA_ID:
+        logger.info(f"   Pasta Alerta ID: Configurado")
+    else:
+        logger.info("   Pasta Alerta ID: Será descoberto automaticamente")
+else:
+    logger.info("📁 Microsoft Client ID não configurado - usando storage local")
+
 # ==================== CONFIGURAÇÕES DE ARMAZENAMENTO ====================
 
 # Caminho para o disco persistente no Render
 RENDER_DISK_PATH = os.environ.get("RENDER_DISK_PATH", "/opt/render/project/disk")
 
-# Diretório de dados compartilhado
+# Diretório de dados compartilhado (fallback local)
 DATA_DIR = os.path.join(RENDER_DISK_PATH, "shared_data")
 
-# Caminho para o banco de dados SQLite
-DATABASE_PATH = os.path.join(DATA_DIR, "ccb_alerta_bot.db")
+# Caminho para o banco de dados SQLite (será determinado dinamicamente)
+# A função get_db_path() no database.py decidirá se usa OneDrive ou local
+DATABASE_PATH = None  # Será determinado dinamicamente
 
 # Diretório temporário
 TEMP_DIR = os.path.join(DATA_DIR, "temp")
@@ -125,7 +150,7 @@ TEMP_DIR = os.path.join(DATA_DIR, "temp")
 CODIGO, NOME, FUNCAO, CONFIRMAR = range(4)
 
 def verificar_diretorios():
-    """Garante que os diretórios necessários existam"""
+    """Garante que os diretórios necessários existam (fallback local)"""
     # Garantir que o diretório de dados existe
     os.makedirs(DATA_DIR, exist_ok=True)
     
@@ -134,44 +159,61 @@ def verificar_diretorios():
     os.makedirs(TEMP_DIR, exist_ok=True)
     os.makedirs(os.path.join(DATA_DIR, "backup"), exist_ok=True)
     
-    logger.info(f"Diretórios verificados e criados em: {DATA_DIR}")
-    logger.info(f"Banco de dados será armazenado em: {DATABASE_PATH}")
+    logger.info(f"Diretórios locais verificados: {DATA_DIR}")
 
 def inicializar_sistema():
-    """Inicializa todos os componentes do sistema"""
-    global ADMIN_IDS
+    """
+    Inicializa todos os componentes do sistema
+    ATUALIZADO: Suporte a OneDrive + fallback local
+    """
+    global ADMIN_IDS, DATABASE_PATH
     
-    # Garantir que os diretórios existam antes de inicializar
+    # Garantir que os diretórios existem antes de inicializar
     verificar_diretorios()  
     
-    # Importamos aqui para evitar importação circular
+    # NOVO: Inicializar OneDriveManager se habilitado
+    if ONEDRIVE_DATABASE_ENABLED and MICROSOFT_CLIENT_ID:
+        logger.info("🌐 Inicializando integração OneDrive...")
+        try:
+            from utils.database.database import inicializar_onedrive_manager
+            inicializar_onedrive_manager()
+            logger.info("✅ OneDrive integrado com sucesso")
+        except Exception as e:
+            logger.error(f"❌ Erro inicializando OneDrive: {e}")
+            logger.info("📁 Continuando com storage local")
+    else:
+        logger.info("📁 OneDrive desabilitado - usando storage local")
+    
+    # Importar funções de database após inicialização OneDrive
     from utils.database import init_database, listar_admins, inicializar_admins_padrao
     
-    # Inicializar banco de dados SQLite
-    logger.info("Inicializando banco de dados SQLite...")
+    # Inicializar banco de dados (OneDrive ou local)
+    logger.info("🔧 Inicializando banco de dados...")
     if init_database():
-        logger.info(f"Banco de dados inicializado com sucesso em {DATABASE_PATH}")
+        from utils.database.database import get_db_path
+        DATABASE_PATH = get_db_path()
+        logger.info(f"✅ Banco de dados inicializado: {DATABASE_PATH}")
     else:
-        logger.error(f"Falha ao inicializar banco de dados em {DATABASE_PATH}")
+        logger.error("❌ Falha ao inicializar banco de dados")
     
     # Inicializar administradores padrão (se houver)
     if ADMIN_IDS:
-        logger.info("Configurando administradores...")
+        logger.info("👥 Configurando administradores...")
         try:
             count = inicializar_admins_padrao(ADMIN_IDS)
-            logger.info(f"{count} administradores padrão configurados")
+            logger.info(f"✅ {count} administradores padrão configurados")
         
             # Carregar lista atual de administradores
             admins = listar_admins()
             if admins:
                 ADMIN_IDS = admins
-                logger.info(f"Total de administradores: {len(ADMIN_IDS)}")
+                logger.info(f"📊 Total de administradores: {len(ADMIN_IDS)}")
             else:
-                logger.warning("Não foi possível carregar administradores do banco de dados")
+                logger.warning("⚠️ Não foi possível carregar administradores do banco de dados")
         except Exception as e:
-            logger.error(f"Erro ao configurar administradores: {str(e)}")
+            logger.error(f"❌ Erro ao configurar administradores: {str(e)}")
     else:
-        logger.info("Nenhum administrador configurado via ADMIN_IDS")
+        logger.info("👥 Nenhum administrador configurado via ADMIN_IDS")
 
 # ==================== CONFIGURAÇÕES ADICIONAIS ====================
 
@@ -185,4 +227,39 @@ PRODUCTION_CONFIG = {
     'pool_timeout': 30
 }
 
-logger.info("Configurações carregadas com sucesso")
+# ==================== VALIDAÇÃO DE DEPENDÊNCIAS ONEDRIVE ====================
+
+def validar_configuracao_onedrive():
+    """
+    Valida se a configuração OneDrive está completa
+    
+    Returns:
+        dict: Status da configuração OneDrive
+    """
+    status = {
+        'habilitado': ONEDRIVE_DATABASE_ENABLED,
+        'client_id_configurado': bool(MICROSOFT_CLIENT_ID),
+        'tenant_configurado': bool(MICROSOFT_TENANT_ID),
+        'pasta_id_configurada': bool(ONEDRIVE_ALERTA_ID),
+        'token_disponivel': False,
+        'pronto_para_uso': False
+    }
+    
+    if ONEDRIVE_DATABASE_ENABLED and MICROSOFT_CLIENT_ID:
+        try:
+            from auth.microsoft_auth import MicrosoftAuth
+            auth = MicrosoftAuth()
+            status['token_disponivel'] = bool(auth.access_token)
+            status['pronto_para_uso'] = status['token_disponivel']
+        except Exception as e:
+            logger.debug(f"Erro validando token OneDrive: {e}")
+    
+    return status
+
+# Log final das configurações
+logger.info("🔧 Configurações carregadas com sucesso")
+
+# Se OneDrive habilitado, mostrar status
+if ONEDRIVE_DATABASE_ENABLED:
+    status_onedrive = validar_configuracao_onedrive()
+    logger.info(f"🌐 Status OneDrive: {'✅ Pronto' if status_onedrive['pronto_para_uso'] else '⚠️ Configuração incompleta'}")
