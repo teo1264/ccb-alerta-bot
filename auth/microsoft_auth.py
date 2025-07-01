@@ -2,10 +2,11 @@
 # -*- coding: utf-8 -*-
 """
 📁 ARQUIVO: auth/microsoft_auth.py
-💾 ONDE SALVAR: ccb-alerta-bot/auth/microsoft_auth.py
+💾 ONDE SALVAR: ccb-alerta-bot/auth/microsoft_auth.py  
 📦 FUNÇÃO: Autenticação Microsoft Graph API para Bot Telegram
 🔧 DESCRIÇÃO: Gerenciamento de tokens, refresh e credenciais Microsoft
 👨‍💼 ADAPTADO PARA: CCB Alerta Bot (compartilhamento com sistema BRK)
+🐛 VERSÃO DEBUG: Com logs detalhados para troubleshooting
 """
 
 import os
@@ -47,6 +48,12 @@ class MicrosoftAuth:
         # Caminhos para tokens (persistent disk prioritário - MESMO PATH BRK)
         self.token_file_persistent = "/opt/render/project/storage/token_bot.json"
         self.token_file_local = "token_bot.json"
+        
+        # DEBUG: Log dos caminhos
+        logger.info(f"🔍 DEBUG: Arquivo persistent: {self.token_file_persistent}")
+        logger.info(f"🔍 DEBUG: Arquivo local: {self.token_file_local}")
+        logger.info(f"🔍 DEBUG: Persistent existe? {os.path.exists(self.token_file_persistent)}")
+        logger.info(f"🔍 DEBUG: Local existe? {os.path.exists(self.token_file_local)}")
         
         # Estado de autenticação
         self.access_token = None
@@ -109,11 +116,18 @@ class MicrosoftAuth:
         Returns:
             bool: True se tokens carregados com sucesso
         """
+        logger.info("🔍 DEBUG: Iniciando carregamento de token...")
+        
         if os.path.exists(self.token_file_persistent):
+            logger.info(f"🔍 DEBUG: Arquivo persistent encontrado: {self.token_file_persistent}")
             return self._carregar_do_arquivo(self.token_file_persistent)
         elif os.path.exists(self.token_file_local):
+            logger.info(f"🔍 DEBUG: Arquivo local encontrado: {self.token_file_local}")
             return self._carregar_do_arquivo(self.token_file_local)
         else:
+            logger.info("🔍 DEBUG: Nenhum arquivo de token encontrado")
+            logger.info(f"🔍 DEBUG: Tentou persistent: {self.token_file_persistent}")
+            logger.info(f"🔍 DEBUG: Tentou local: {self.token_file_local}")
             logger.info("💡 Token não encontrado - use mesmo token do sistema BRK")
             return False
     
@@ -122,9 +136,14 @@ class MicrosoftAuth:
         Carregar token de arquivo específico (com suporte a criptografia)
         """
         try:
+            logger.info(f"🔍 DEBUG: Tentando carregar arquivo: {filepath}")
+            
             # 🔐 LÓGICA: Tentar carregar arquivo criptografado primeiro
             encrypted_file = filepath.replace('.json', '.enc')
+            logger.info(f"🔍 DEBUG: Verificando arquivo criptografado: {encrypted_file}")
+            
             if os.path.exists(encrypted_file):
+                logger.info(f"🔍 DEBUG: Arquivo criptografado encontrado")
                 with open(encrypted_file, 'rb') as f:
                     encrypted_data = f.read()
                 token_data = self._decrypt_token_data(encrypted_data)
@@ -136,11 +155,17 @@ class MicrosoftAuth:
                         return True
             
             # Fallback: carregar arquivo JSON original
+            logger.info(f"🔍 DEBUG: Tentando carregar JSON original: {filepath}")
             with open(filepath, 'r') as f:
                 token_data = json.load(f)
             
+            logger.info(f"🔍 DEBUG: JSON carregado com sucesso")
+            
             self.access_token = token_data.get('access_token')
             self.refresh_token = token_data.get('refresh_token')
+            
+            logger.info(f"🔍 DEBUG: access_token existe? {bool(self.access_token)}")
+            logger.info(f"🔍 DEBUG: refresh_token existe? {bool(self.refresh_token)}")
             
             if self.access_token and self.refresh_token:
                 logger.info(f"✅ Tokens carregados de: {filepath}")
