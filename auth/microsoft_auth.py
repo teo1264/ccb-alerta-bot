@@ -45,8 +45,8 @@ class MicrosoftAuth:
         if not self.client_id:
             raise ValueError("❌ MICROSOFT_CLIENT_ID não configurado!")
         
-        # Caminhos para tokens (persistent disk RENDER OFICIAL)
-        self.token_file_persistent = "/opt/render/project/storage/token.json"
+        # Caminhos para tokens (PERSISTENT DISK CORRETO - MESMO DO DATABASE)
+        self.token_file_persistent = "/opt/render/project/disk/shared_data/token.json"
         self.token_file_local = "token.json"
         
         # DEBUG: Log dos caminhos
@@ -68,8 +68,8 @@ class MicrosoftAuth:
         logger.info(f"   Token: {'✅ OK' if tokens_ok else '❌ Faltando'}")
 
     def _get_encryption_key(self):
-        """Obter ou gerar chave de criptografia (PATH RENDER OFICIAL)"""
-        key_file = "/opt/render/project/storage/.encryption_key"
+        """Obter ou gerar chave de criptografia (PERSISTENT DISK CORRETO)"""
+        key_file = "/opt/render/project/disk/shared_data/.encryption_key"
         try:
             if os.path.exists(key_file):
                 with open(key_file, 'rb') as f:
