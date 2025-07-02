@@ -45,8 +45,8 @@ class MicrosoftAuth:
         if not self.client_id:
             raise ValueError("❌ MICROSOFT_CLIENT_ID não configurado!")
         
-        # Caminhos para tokens (persistent disk prioritário - MESMO PATH BRK)
-        self.token_file_persistent = "/opt/render/project/disk/shared_data/token_bot.json"
+        # Caminhos para tokens (persistent disk prioritário - PADRÃO BRK CORRIGIDO)
+        self.token_file_persistent = "/opt/render/project/storage/token.json"
         self.token_file_local = "token_bot.json"
         
         # DEBUG: Log dos caminhos
@@ -68,8 +68,8 @@ class MicrosoftAuth:
         logger.info(f"   Token: {'✅ OK' if tokens_ok else '❌ Faltando'}")
 
     def _get_encryption_key(self):
-        """Obter ou gerar chave de criptografia (MESMA LÓGICA BRK)"""
-        key_file = "/opt/render/project/storage/.encryption_key_bot"
+        """Obter ou gerar chave de criptografia (PADRÃO BRK CORRIGIDO)"""
+        key_file = "/opt/render/project/storage/.encryption_key"
         try:
             if os.path.exists(key_file):
                 with open(key_file, 'rb') as f:
@@ -81,8 +81,8 @@ class MicrosoftAuth:
             os.chmod(key_file, 0o600)
             return key
         except Exception:
-            # Fallback: gerar chave determinística
-            unique_data = f"{self.client_id}_bot_{os.getenv('RENDER_SERVICE_ID', 'fallback')}"
+            # Fallback: gerar chave determinística (PADRÃO BRK CORRIGIDO)
+            unique_data = f"{self.client_id}{os.getenv('RENDER_SERVICE_ID', 'fallback')}"
             return base64.urlsafe_b64encode(hashlib.sha256(unique_data.encode()).digest())
 
     def _encrypt_token_data(self, token_data):
@@ -110,7 +110,7 @@ class MicrosoftAuth:
         Carregar token do persistent disk ou local
         
         Prioridade:
-        1. /opt/render/project/storage/token_bot.json (persistent disk)
+        1. /opt/render/project/storage/token.json (persistent disk)
         2. ./token_bot.json (local para desenvolvimento)
         
         Returns:
@@ -179,9 +179,8 @@ class MicrosoftAuth:
             return False
         except Exception as e:
             logger.error(f"❌ Erro carregando {filepath}: {e}")
-            return False            
-     
-    def salvar_token_persistent(self) -> bool:
+            return False
+def salvar_token_persistent(self) -> bool:
         """
         Salvar token no persistent disk com proteção de segurança E CRIPTOGRAFIA
         """
