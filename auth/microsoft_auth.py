@@ -45,9 +45,9 @@ class MicrosoftAuth:
         if not self.client_id:
             raise ValueError("❌ MICROSOFT_CLIENT_ID não configurado!")
         
-        # Caminhos para tokens (persistent disk prioritário - PADRÃO BRK CORRIGIDO)
-        self.token_file_persistent = "/opt/render/project/storage/token.json"
-        self.token_file_local = "token_bot.json"
+        # Caminhos para tokens (persistent disk prioritário - PATH RENDER CORRETO)
+        self.token_file_persistent = "/opt/render/project/src/data/token.json"
+        self.token_file_local = "token.json"
         
         # DEBUG: Log dos caminhos
         logger.info(f"🔍 DEBUG: Arquivo persistent: {self.token_file_persistent}")
@@ -68,8 +68,8 @@ class MicrosoftAuth:
         logger.info(f"   Token: {'✅ OK' if tokens_ok else '❌ Faltando'}")
 
     def _get_encryption_key(self):
-        """Obter ou gerar chave de criptografia (PADRÃO BRK CORRIGIDO)"""
-        key_file = "/opt/render/project/storage/.encryption_key"
+        """Obter ou gerar chave de criptografia (PATH RENDER CORRETO)"""
+        key_file = "/opt/render/project/src/data/.encryption_key"
         try:
             if os.path.exists(key_file):
                 with open(key_file, 'rb') as f:
@@ -111,7 +111,7 @@ class MicrosoftAuth:
         
         Prioridade:
         1. /opt/render/project/storage/token.json (persistent disk)
-        2. ./token_bot.json (local para desenvolvimento)
+        2. ./token.json (local para desenvolvimento)
         
         Returns:
             bool: True se tokens carregados com sucesso
@@ -180,7 +180,8 @@ class MicrosoftAuth:
         except Exception as e:
             logger.error(f"❌ Erro carregando {filepath}: {e}")
             return False
-def salvar_token_persistent(self) -> bool:
+    
+    def salvar_token_persistent(self) -> bool:
         """
         Salvar token no persistent disk com proteção de segurança E CRIPTOGRAFIA
         """
@@ -224,7 +225,7 @@ def salvar_token_persistent(self) -> bool:
         except Exception as e:
             logger.error(f"❌ Erro salvando token protegido: {e}")
             return False
-            
+    
     def atualizar_token(self) -> bool:
         """
         Renovar access_token usando refresh_token
