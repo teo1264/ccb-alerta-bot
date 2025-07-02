@@ -45,8 +45,8 @@ class MicrosoftAuth:
         if not self.client_id:
             raise ValueError("❌ MICROSOFT_CLIENT_ID não configurado!")
         
-        # Caminhos para tokens (persistent disk prioritário - PATH RENDER CORRETO)
-        self.token_file_persistent = "/opt/render/project/src/data/token.json"
+        # Caminhos para tokens (persistent disk RENDER OFICIAL)
+        self.token_file_persistent = "/opt/render/project/storage/token.json"
         self.token_file_local = "token.json"
         
         # DEBUG: Log dos caminhos
@@ -68,8 +68,8 @@ class MicrosoftAuth:
         logger.info(f"   Token: {'✅ OK' if tokens_ok else '❌ Faltando'}")
 
     def _get_encryption_key(self):
-        """Obter ou gerar chave de criptografia (PATH RENDER CORRETO)"""
-        key_file = "/opt/render/project/src/data/.encryption_key"
+        """Obter ou gerar chave de criptografia (PATH RENDER OFICIAL)"""
+        key_file = "/opt/render/project/storage/.encryption_key"
         try:
             if os.path.exists(key_file):
                 with open(key_file, 'rb') as f:
@@ -306,11 +306,17 @@ class MicrosoftAuth:
     
     def obter_headers_autenticados(self) -> Dict[str, str]:
         """
-        Obter headers HTTP com autenticação
+        Obter headers HTTP com autenticação (COM RENOVAÇÃO AUTOMÁTICA)
         
         Returns:
             Dict[str, str]: Headers prontos para requisições Graph API
         """
+        # Renovar token se necessário
+        if not self.validar_token():
+            logger.info("🔄 Token inválido, renovando automaticamente...")
+            if not self.atualizar_token():
+                raise ValueError("❌ Falha na renovação automática do token")
+        
         if not self.access_token:
             raise ValueError("❌ Access token não disponível")
         
