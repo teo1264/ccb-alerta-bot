@@ -37,9 +37,9 @@ class MicrosoftAuth:
     def __init__(self):
         """Inicializar autenticação com validação obrigatória"""
         
-        # CONFIGURAÇÕES APENAS VIA ENVIRONMENT VARIABLES (MESMA LÓGICA BRK)
+        # CONFIGURAÇÕES: CLIENT_ID via ambiente + TENANT_ID fixo (IGUAL BRK)
         self.client_id = os.getenv("MICROSOFT_CLIENT_ID")
-        self.tenant_id = os.getenv("MICROSOFT_TENANT_ID", "consumers")
+        self.tenant_id = "consumers"  # FIXO igual BRK que funciona
         
         # VALIDAÇÃO OBRIGATÓRIA
         if not self.client_id:
