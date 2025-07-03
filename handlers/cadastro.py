@@ -3,8 +3,7 @@
 
 """
 Handlers para o processo de cadastro do CCB Alerta Bot
-CORREÇÃO: Botão "Cancelar" funciona corretamente
-BLOCO 1/2: Imports, configurações e funções principais
+VERSÃO CORRIGIDA COMPLETA - Fix navegação + cancelar
 """
 
 import re
@@ -18,7 +17,6 @@ from telegram.ext import (
 
 from config import CODIGO, NOME, FUNCAO, CONFIRMAR
 
-# Imports corrigidos
 try:
     from utils.database import (
         verificar_cadastro_existente_detalhado,
@@ -40,10 +38,9 @@ from handlers.data import (
     obter_igreja_por_codigo, detectar_funcao_similar
 )
 
-# Logger
 logger = logging.getLogger(__name__)
 
-# Estados adicionais para a navegação nos menus
+# Estados para navegação
 SELECIONAR_IGREJA, SELECIONAR_FUNCAO = range(4, 6)
 
 # ==================== FUNÇÃO CANCELAR CORRIGIDA ====================
@@ -73,13 +70,11 @@ async def cancelar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown'
         )
     
-    # CRITICAL: Sempre retornar ConversationHandler.END
     return ConversationHandler.END
 
 # ==================== FUNÇÕES DE INICIALIZAÇÃO ====================
 async def iniciar_cadastro_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Inicia o processo de cadastro passo a passo"""
-    # Verificar se o usuário aceitou a LGPD
     usuario_aceitou_lgpd = context.user_data.get('aceitou_lgpd', False)
     
     if not usuario_aceitou_lgpd:
@@ -135,14 +130,6 @@ async def processar_aceite_lgpd_cadastro(update: Update, context: ContextTypes.D
 
 async def cadastro_comando(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Redireciona para o cadastro em etapas"""
-    await update.message.reply_text(
-        "*A Paz de Deus!*\n\n"
-        "📝 *Nova forma de cadastro!*\n\n"
-        "Agora utilizamos um processo mais simples, guiado passo a passo.\n\n"
-        "Por favor, use o comando */cadastrar* para iniciar o cadastro.\n\n"
-        "_Deus te abençoe!_ 🙏",
-        parse_mode='Markdown'
-    )
     return await iniciar_cadastro_etapas(update, context)
 
 # ==================== FUNÇÕES DE MENU ====================
@@ -161,8 +148,6 @@ async def mostrar_menu_igrejas(update: Update, context: ContextTypes.DEFAULT_TYP
     keyboard = []
     for igreja in igrejas_paginadas[pagina_atual]:
         callback_data = f"igreja_{igreja['codigo']}"
-        logger.info(f"Criando botão com callback_data: {callback_data}")
-        
         keyboard.append([InlineKeyboardButton(
             f"{igreja['codigo']} - {igreja['nome']}", 
             callback_data=callback_data
@@ -188,17 +173,9 @@ async def mostrar_menu_igrejas(update: Update, context: ContextTypes.DEFAULT_TYP
     )
     
     if isinstance(update, Update):
-        await update.message.reply_text(
-            texto_mensagem,
-            reply_markup=reply_markup,
-            parse_mode='Markdown'
-        )
+        await update.message.reply_text(texto_mensagem, reply_markup=reply_markup, parse_mode='Markdown')
     else:
-        await update.edit_message_text(
-            texto_mensagem,
-            reply_markup=reply_markup,
-            parse_mode='Markdown'
-        )
+        await update.edit_message_text(texto_mensagem, reply_markup=reply_markup, parse_mode='Markdown')
 
 async def mostrar_menu_funcoes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Mostra o menu de seleção de funções"""
@@ -215,12 +192,7 @@ async def mostrar_menu_funcoes(update: Update, context: ContextTypes.DEFAULT_TYP
     keyboard = []
     for funcao in funcoes_paginadas[pagina_atual]:
         callback_data = f"funcao_{funcao}"
-        logger.info(f"Criando botão de função com callback_data: {callback_data}")
-        
-        keyboard.append([InlineKeyboardButton(
-            funcao,
-            callback_data=callback_data
-        )])
+        keyboard.append([InlineKeyboardButton(funcao, callback_data=callback_data)])
     
     # Botões de navegação
     nav_buttons = []
@@ -245,42 +217,33 @@ async def mostrar_menu_funcoes(update: Update, context: ContextTypes.DEFAULT_TYP
     )
     
     if isinstance(update, Update):
-        await update.message.reply_text(
-            texto_mensagem,
-            reply_markup=reply_markup,
-            parse_mode='Markdown'
-        )
+        await update.message.reply_text(texto_mensagem, reply_markup=reply_markup, parse_mode='Markdown')
     else:
-        await update.edit_message_text(
-            texto_mensagem,
-            reply_markup=reply_markup,
-            parse_mode='Markdown'
-        )
+        await update.edit_message_text(texto_mensagem, reply_markup=reply_markup, parse_mode='Markdown')
 
-# ==================== HANDLERS DE SELEÇÃO (CORRIGIDOS) ====================
-async def processar_selecao_igreja(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Processa a seleção ou navegação no menu de igrejas - CORRIGIDO"""
+# ==================== HANDLERS DE CALLBACK CORRIGIDOS ====================
+async def processar_callback_igreja(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """CORRIGIDO: Processa todos os callbacks relacionados a igrejas"""
     query = update.callback_query
     await query.answer()
     
     data = query.data
-    logger.info(f"Callback recebido: {data}")
+    logger.info(f"Callback igreja recebido: {data}")
     
-    # CORRIGIDO: Usar return para garantir que ConversationHandler.END seja retornado
     if data == "cancelar_cadastro":
         return await cancelar_cadastro(update, context)
     
-    if data == "igreja_anterior":
+    elif data == "igreja_anterior":
         context.user_data['cadastro_temp']['pagina_igreja'] -= 1
         await mostrar_menu_igrejas(query, context)
         return SELECIONAR_IGREJA
     
-    if data == "igreja_proxima":
+    elif data == "igreja_proxima":
         context.user_data['cadastro_temp']['pagina_igreja'] += 1
         await mostrar_menu_igrejas(query, context)
         return SELECIONAR_IGREJA
     
-    if data.startswith("igreja_BR"):
+    elif data.startswith("igreja_BR"):
         codigo_igreja = data.replace("igreja_", "")
         igreja = obter_igreja_por_codigo(codigo_igreja)
         
@@ -298,33 +261,33 @@ async def processar_selecao_igreja(update: Update, context: ContextTypes.DEFAULT
             )
             return NOME
     
-    logger.warning(f"Callback data não reconhecido: {data}")
+    # Fallback
+    logger.warning(f"Callback igreja não reconhecido: {data}")
     await mostrar_menu_igrejas(query, context)
     return SELECIONAR_IGREJA
 
-async def processar_selecao_funcao(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Processa a seleção ou navegação no menu de funções - CORRIGIDO"""
+async def processar_callback_funcao(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """CORRIGIDO: Processa todos os callbacks relacionados a funções"""
     query = update.callback_query
     await query.answer()
     
     data = query.data
-    logger.info(f"Callback de função recebido: {data}")
+    logger.info(f"Callback função recebido: {data}")
     
-    # CORRIGIDO: Usar return para garantir que ConversationHandler.END seja retornado
     if data == "cancelar_cadastro":
         return await cancelar_cadastro(update, context)
     
-    if data == "funcao_anterior":
+    elif data == "funcao_anterior":
         context.user_data['cadastro_temp']['pagina_funcao'] -= 1
         await mostrar_menu_funcoes(query, context)
         return SELECIONAR_FUNCAO
     
-    if data == "funcao_proxima":
+    elif data == "funcao_proxima":
         context.user_data['cadastro_temp']['pagina_funcao'] += 1
         await mostrar_menu_funcoes(query, context)
         return SELECIONAR_FUNCAO
     
-    if data == "funcao_outra":
+    elif data == "funcao_outra":
         await query.edit_message_text(
             "*A Santa Paz de Deus!*\n\n"
             "✍️ **DIGITE A FUNÇÃO QUE VOCÊ EXERCE NA CASA DE ORAÇÃO:**\n\n"
@@ -335,17 +298,18 @@ async def processar_selecao_funcao(update: Update, context: ContextTypes.DEFAULT
         )
         return FUNCAO
     
-    if data.startswith("funcao_"):
+    elif data.startswith("funcao_") and not data.endswith(("_anterior", "_proxima", "_outra")):
         funcao = data.replace("funcao_", "")
         
         if funcao not in FUNCOES:
-            logger.warning(f"Função não reconhecida selecionada: {funcao}")
+            logger.warning(f"Função não reconhecida: {funcao}")
             await mostrar_menu_funcoes(query, context)
             return SELECIONAR_FUNCAO
         
         context.user_data['cadastro_temp']['funcao'] = funcao
-        logger.info(f"Função selecionada dos botões: {funcao}")
+        logger.info(f"Função selecionada: {funcao}")
         
+        # Mostrar confirmação
         codigo = context.user_data['cadastro_temp']['codigo']
         nome = context.user_data['cadastro_temp']['nome']
         nome_igreja = context.user_data['cadastro_temp']['nome_igreja']
@@ -371,7 +335,8 @@ async def processar_selecao_funcao(update: Update, context: ContextTypes.DEFAULT
         )
         return CONFIRMAR
     
-    logger.warning(f"Callback de função não reconhecido: {data}")
+    # Fallback
+    logger.warning(f"Callback função não reconhecido: {data}")
     await mostrar_menu_funcoes(query, context)
     return SELECIONAR_FUNCAO
 
@@ -381,9 +346,7 @@ async def receber_nome(update: Update, context: ContextTypes.DEFAULT_TYPE):
     nome = update.message.text.strip()
     
     if len(nome) < 3:
-        await update.message.reply_text(
-            "❌ Por favor, digite um nome válido com pelo menos 3 caracteres."
-        )
+        await update.message.reply_text("❌ Por favor, digite um nome válido com pelo menos 3 caracteres.")
         return NOME
     
     context.user_data['cadastro_temp']['nome'] = nome
@@ -398,15 +361,11 @@ async def receber_funcao(update: Update, context: ContextTypes.DEFAULT_TYPE):
     funcao = update.message.text.strip()
     
     if len(funcao) < 3:
-        await update.message.reply_text(
-            "❌ Por favor, digite uma função válida com pelo menos 3 caracteres."
-        )
+        await update.message.reply_text("❌ Por favor, digite uma função válida com pelo menos 3 caracteres.")
         return FUNCAO
     
     if not re.search(r'[a-zA-ZÀ-ÿ]', funcao):
-        await update.message.reply_text(
-            "❌ Por favor, digite uma função válida que contenha letras."
-        )
+        await update.message.reply_text("❌ Por favor, digite uma função válida que contenha letras.")
         return FUNCAO
     
     # Validação inteligente
@@ -430,8 +389,9 @@ async def receber_funcao(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return FUNCAO
     
     context.user_data['cadastro_temp']['funcao'] = funcao
-    logger.info(f"Função digitada e aprovada: {funcao}")
+    logger.info(f"Função digitada aprovada: {funcao}")
     
+    # Mostrar confirmação
     keyboard = [
         [
             InlineKeyboardButton("✅ Confirmar Cadastro", callback_data="confirmar_etapas"),
@@ -457,40 +417,27 @@ async def receber_funcao(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return CONFIRMAR
 
-async def processar_callback_funcao_similar(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Processa os callbacks relacionados à detecção de função similar"""
+async def processar_voltar_menu_funcoes(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Processa volta ao menu de funções"""
     query = update.callback_query
     await query.answer()
     
-    data = query.data
-    logger.info(f"Callback função similar recebido: {data}")
-    
-    if data == "voltar_menu_funcoes":
-        if 'cadastro_temp' in context.user_data:
-            context.user_data['cadastro_temp'].pop('funcao_digitada_similar', None)
-            context.user_data['cadastro_temp']['pagina_funcao'] = 0
-        
-        logger.info("Voltando ao menu de funções após detecção de função similar")
-        await mostrar_menu_funcoes(query, context)
-        return SELECIONAR_FUNCAO
-    
-    logger.warning(f"Callback não reconhecido: {data} - forçando volta ao menu")
     if 'cadastro_temp' in context.user_data:
+        context.user_data['cadastro_temp'].pop('funcao_digitada_similar', None)
         context.user_data['cadastro_temp']['pagina_funcao'] = 0
     
     await mostrar_menu_funcoes(query, context)
     return SELECIONAR_FUNCAO
 
-# ==================== CONFIRMAÇÃO FINAL (CORRIGIDA) ====================
+# ==================== CONFIRMAÇÃO FINAL ====================
 async def confirmar_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Processa a confirmação do cadastro em etapas - CORRIGIDO"""
+    """Processa a confirmação do cadastro"""
     query = update.callback_query
     await query.answer()
     
     data = query.data
-    logger.info(f"Callback de confirmação: {data}")
+    logger.info(f"Callback confirmação: {data}")
     
-    # CORRIGIDO: Usar return para garantir que ConversationHandler.END seja retornado
     if data == "cancelar_etapas":
         return await cancelar_cadastro(update, context)
     
@@ -577,26 +524,26 @@ async def confirmar_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode='Markdown'
             )
         
-        # Limpar dados do contexto
+        # Limpar contexto
         if 'cadastro_temp' in context.user_data:
             del context.user_data['cadastro_temp']
         
         return ConversationHandler.END
 
-# ==================== REGISTRO DOS HANDLERS (CORRIGIDO) ====================
+# ==================== REGISTRO DOS HANDLERS CORRIGIDO ====================
 def registrar_handlers_cadastro(application):
     """Registra handlers relacionados ao cadastro - VERSÃO CORRIGIDA"""
     
-    # Handler para cadastro manual via comando
+    # Handler para comando cadastro
     application.add_handler(CommandHandler("cadastro", cadastro_comando))
     
-    # Callback handler para aceite de LGPD no cadastro
+    # Handler para aceite LGPD
     application.add_handler(CallbackQueryHandler(
         processar_aceite_lgpd_cadastro, 
         pattern='^aceitar_lgpd_cadastro$'
     ))
     
-    # CORRIGIDO: ConversationHandler com fallbacks adequados
+    # ConversationHandler CORRIGIDO
     cadastro_handler = ConversationHandler(
         entry_points=[
             CommandHandler("cadastrar", iniciar_cadastro_etapas),
@@ -604,19 +551,26 @@ def registrar_handlers_cadastro(application):
         ],
         states={
             SELECIONAR_IGREJA: [
-                CallbackQueryHandler(processar_selecao_igreja, pattern=r'^igreja_'),
-                CallbackQueryHandler(processar_selecao_igreja, pattern=r'^(igreja_anterior|igreja_proxima)$')
+                # CORRIGIDO: Callbacks específicos para cada ação
+                CallbackQueryHandler(processar_callback_igreja, pattern=r'^igreja_anterior$'),
+                CallbackQueryHandler(processar_callback_igreja, pattern=r'^igreja_proxima$'),
+                CallbackQueryHandler(processar_callback_igreja, pattern=r'^igreja_BR'),
+                CallbackQueryHandler(processar_callback_igreja, pattern=r'^cancelar_cadastro$'),
             ],
             NOME: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, receber_nome)
             ],
             SELECIONAR_FUNCAO: [
-                CallbackQueryHandler(processar_selecao_funcao, pattern=r'^funcao_'),
-                CallbackQueryHandler(processar_selecao_funcao, pattern=r'^(funcao_anterior|funcao_proxima)$')
+                # CORRIGIDO: Callbacks específicos para cada ação
+                CallbackQueryHandler(processar_callback_funcao, pattern=r'^funcao_anterior$'),
+                CallbackQueryHandler(processar_callback_funcao, pattern=r'^funcao_proxima$'),
+                CallbackQueryHandler(processar_callback_funcao, pattern=r'^funcao_outra$'),
+                CallbackQueryHandler(processar_callback_funcao, pattern=r'^funcao_(?!anterior|proxima|outra)'),
+                CallbackQueryHandler(processar_callback_funcao, pattern=r'^cancelar_cadastro$'),
             ],
             FUNCAO: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, receber_funcao),
-                CallbackQueryHandler(processar_callback_funcao_similar, pattern=r'^voltar_menu_funcoes$')
+                CallbackQueryHandler(processar_voltar_menu_funcoes, pattern=r'^voltar_menu_funcoes$')
             ],
             CONFIRMAR: [
                 CallbackQueryHandler(confirmar_etapas, pattern=r'^(confirmar|cancelar)_etapas$')
@@ -631,6 +585,4 @@ def registrar_handlers_cadastro(application):
     )
     
     application.add_handler(cadastro_handler)
-    
-    logger.info("✅ Handlers de cadastro registrados com correção do botão Cancelar")
-    
+    logger.info("✅ Handlers de cadastro registrados - NAVEGAÇÃO CORRIGIDA")v
