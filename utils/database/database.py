@@ -11,6 +11,22 @@ from contextlib import contextmanager
 import shutil
 
 logger = logging.getLogger("CCB-Alerta-Bot.database")
+# ADICIONAR estas linhas após "logger = logging.getLogger..." (linha ~16)
+
+# NOVO: Cache para evitar downloads repetidos
+_last_onedrive_sync = None
+_cache_timeout_minutes = 3
+
+def _should_sync_onedrive():
+    """Evitar sincronizações muito frequentes"""
+    global _last_onedrive_sync
+    
+    if not _last_onedrive_sync:
+        return True
+    
+    from datetime import datetime, timedelta
+    cache_age = datetime.now() - _last_onedrive_sync
+    return cache_age.total_seconds() > (_cache_timeout_minutes * 60)
 
 # Gerenciador OneDrive global (será inicializado)
 _onedrive_manager = None
@@ -57,32 +73,40 @@ def inicializar_onedrive_manager():
 
 def get_db_path():
     """
-    Obtém o caminho para o banco de dados SQLite
-    
-    NOVO: Suporte híbrido OneDrive + Local
-    - Se OneDrive disponível: baixa para cache local e retorna path local
-    - Se OneDrive indisponível: usa storage local tradicional
-    
-    Returns:
-        str: Caminho absoluto para o arquivo do banco de dados
+    OTIMIZADO: Caminho database sem downloads repetidos
     """
-    global _onedrive_manager
+    global _onedrive_manager, _last_onedrive_sync
     
-    # Se OneDrive configurado, usar estratégia híbrida
+    # Se OneDrive configurado, usar estratégia otimizada
     if _onedrive_manager:
         try:
-            return _onedrive_manager.obter_caminho_database_hibrido()
+            cache_path = os.path.join(
+                "/opt/render/project/storage", 
+                "alertas_bot_cache.db"
+            )
+            
+            # NOVO: Só baixar se necessário (evita downloads repetidos)
+            if _should_sync_onedrive() or not os.path.exists(cache_path):
+                if _onedrive_manager.download_database(cache_path):
+                    _last_onedrive_sync = datetime.now()
+                    logger.info("✅ Database atualizado do OneDrive")
+                else:
+                    logger.debug("📁 Usando cache local existente")
+            else:
+                logger.debug("📁 Cache ainda válido - sem download")
+            
+            return cache_path
+            
         except Exception as e:
-            logger.error(f"❌ Erro usando OneDrive, fallback para local: {e}")
+            logger.warning(f"⚠️ Erro OneDrive: {e}")
     
-    # Fallback: usar caminho local tradicional
+    # Fallback: caminho local tradicional
     RENDER_DISK_PATH = os.environ.get("RENDER_DISK_PATH", "/opt/render/project/disk")
     DATA_DIR = os.path.join(RENDER_DISK_PATH, "shared_data")
     os.makedirs(DATA_DIR, exist_ok=True)
     
     return os.path.join(DATA_DIR, "alertas_bot.db")
-
-@contextmanager
+    
 def get_connection():
     """
     Contexto para obter uma conexão com o banco, garantindo que será fechada
@@ -178,19 +202,30 @@ def init_database():
 
 def _sincronizar_apos_modificacao():
     """
-    Sincronizar banco com OneDrive após modificações
-    
-    Chamado automaticamente após operações que modificam o banco
+    OTIMIZADO: Upload assíncrono simples
     """
     global _onedrive_manager
     
     if _onedrive_manager:
         try:
-            db_path = get_db_path()
-            _onedrive_manager.sincronizar_para_onedrive(db_path)
+            import threading
+            
+            def upload_thread():
+                try:
+                    db_path = "/opt/render/project/storage/alertas_bot_cache.db"
+                    if os.path.exists(db_path):
+                        _onedrive_manager.upload_database(db_path)
+                        logger.info("✅ Upload assíncrono concluído")
+                except Exception as e:
+                    logger.warning(f"⚠️ Upload assíncrono falhou: {e}")
+            
+            # Upload em thread separada (não bloqueia resposta)
+            threading.Thread(target=upload_thread, daemon=True).start()
+            logger.debug("📤 Upload assíncrono iniciado")
+            
         except Exception as e:
-            logger.warning(f"⚠️ Erro sincronizando com OneDrive: {e}")
-
+            logger.warning(f"⚠️ Erro upload assíncrono: {e}")
+            
 # Funções para fazer backup do banco
 def fazer_backup_banco():
     """
