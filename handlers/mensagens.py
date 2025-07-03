@@ -160,23 +160,24 @@ def registrar_handlers_mensagens(application):
             # Marcar que o usuário aceitou os termos
             context.user_data['aceitou_lgpd'] = True
             
-            # Editar mensagem para confirmação e iniciar cadastro
+            # Editar mensagem para confirmação
             await query.edit_message_text(
                 "*A SANTA PAZ DE DEUS!*\n\n"
                 "✅ *Obrigado por aceitar os termos!*\n\n"
-                "📝 *Agora vamos ao seu cadastro...*\n\n"
-                "👇 *Escolha sua Casa de Oração:*",
+                "📝 *Iniciando seu cadastro...*",
                 parse_mode='Markdown'
             )
             
-            # Iniciar cadastro automaticamente
-            # Simular um objeto Update para o cadastro
-            fake_update = type('obj', (object,), {
-                'effective_user': query.from_user,
-                'message': query.message
-            })
+            # Inicializar dados do cadastro no contexto
+            context.user_data['cadastro_temp'] = {'pagina_igreja': 0}
             
-            return await iniciar_cadastro_etapas(fake_update, context)
+            # Enviar menu de igrejas diretamente
+            from handlers.cadastro import mostrar_menu_igrejas
+            await mostrar_menu_igrejas(query.message, context, is_new_message=True)
+            
+            # Retornar o estado do conversation handler
+            from config import SELECIONAR_IGREJA
+            return SELECIONAR_IGREJA
     
     # Registrar o callback handler
     application.add_handler(CallbackQueryHandler(
