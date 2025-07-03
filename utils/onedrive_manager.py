@@ -54,7 +54,12 @@ class OneDriveManager:
         
         logger.info("🔧 OneDriveManager inicializado")
         logger.info(f"   Pasta Alerta ID: {'✅ Configurado' if self.alerta_folder_id else '❌ Não configurado'}")
-    
+# ADICIONAR estas linhas no final do método __init__ da classe OneDriveManager:
+
+        # NOVO: Timeouts reduzidos para melhor performance
+        self.timeout_download = 8   # Era 30s, agora 8s
+        self.timeout_upload = 15    # Era 60s, agora 15s    
+
     def _obter_headers(self) -> Dict[str, str]:
         """Obter headers autenticados para requisições"""
         try:
@@ -233,7 +238,7 @@ class OneDriveManager:
                 'Content-Type': 'application/octet-stream'
             }
             
-            response = requests.put(url, headers=upload_headers, data=file_content, timeout=60)
+            response = requests.put(url, headers=upload_headers, data=file_content, timeout=self.timeout_upload)
             
             if response.status_code in [200, 201]:
                 file_data = response.json()
@@ -268,7 +273,7 @@ class OneDriveManager:
             filename = "alertas_bot.db"
             url = f"{self.base_url}/me/drive/items/{self.alerta_folder_id}:/{filename}:/content"
             
-            response = requests.get(url, headers=headers, timeout=60)
+            response = requests.get(url, headers=headers, timeout=self.timeout_download)
             
             if response.status_code == 200:
                 # Garantir que diretório existe
