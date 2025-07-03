@@ -95,17 +95,11 @@ async def processar_mensagem(update: Update, context: ContextTypes.DEFAULT_TYPE)
             "*A SANTA PAZ DE DEUS, IRMÃO(Ã)!*\n\n"
             "😊 *Que alegria ter você aqui!*\n\n"
             "📱 *Este é o sistema de alertas automáticos da CCB Região de Mauá.*\n\n"
-            "📋 *INFORMAÇÃO IMPORTANTE:*\n\n"
-            "Para seu cadastro, vamos precisar do seu:\n"
-            "• *Nome completo*\n"
-            "• *Função na Casa de Oração*\n"
-            "• *ID do Telegram*\n\n"
-            "🔒 *Seus dados são protegidos conforme a Lei de Proteção de Dados (LGPD).*\n\n"
-            "❌ *Não compartilhamos com terceiros*\n"
-            "✅ *Usado apenas para alertas da nossa região*\n\n"
-            "🗑️ *Pode solicitar remoção a qualquer momento com o comando:*\n"
-            "*/remover*\n\n"
-            "🤝 *Se concorda, clique no botão abaixo para iniciar seu cadastro:*",
+            "📋 *Para seu cadastro, vamos precisar apenas de:*\n"
+            "• *Seu nome completo*\n"
+            "• *Sua função na Casa de Oração*\n\n"
+            "🔒 *Seus dados ficam protegidos e são usados apenas para enviar alertas importantes.*\n\n"
+            "🤝 *Clique no botão abaixo para concordar e iniciar:*",
             reply_markup=update.message.reply_markup,
             parse_mode='Markdown'
         )
@@ -163,21 +157,39 @@ def registrar_handlers_mensagens(application):
             # Editar mensagem para confirmação
             await query.edit_message_text(
                 "*A SANTA PAZ DE DEUS!*\n\n"
-                "✅ *Obrigado por aceitar os termos!*\n\n"
-                "📝 *Iniciando seu cadastro...*",
+                "✅ *Termos aceitos com sucesso!*\n\n"
+                "📝 *Agora vamos ao seu cadastro...*",
                 parse_mode='Markdown'
             )
             
-            # Inicializar dados do cadastro no contexto
-            context.user_data['cadastro_temp'] = {'pagina_igreja': 0}
+            # Enviar nova mensagem iniciando o cadastro diretamente
+            await query.message.reply_text(
+                "*📝 INICIANDO SEU CADASTRO*\n\n"
+                "👇 *Escolha sua Casa de Oração:*",
+                parse_mode='Markdown'
+            )
             
-            # Enviar menu de igrejas diretamente
+            # Preparar dados para o cadastro
+            if 'cadastro_temp' not in context.user_data:
+                context.user_data['cadastro_temp'] = {'pagina_igreja': 0}
+            
+            # Simular envio do menu de igrejas via função direta
             from handlers.cadastro import mostrar_menu_igrejas
-            await mostrar_menu_igrejas(query.message, context, is_new_message=True)
             
-            # Retornar o estado do conversation handler
-            from config import SELECIONAR_IGREJA
-            return SELECIONAR_IGREJA
+            # Criar um update "fake" simples que funciona
+            fake_update = type('FakeUpdate', (), {})()
+            fake_update.message = query.message
+            fake_update.effective_user = query.from_user
+            
+            # Chamar a função de mostrar menu
+            try:
+                await mostrar_menu_igrejas(fake_update, context)
+            except Exception as e:
+                # Se der erro, pelo menos dá a instrução para continuar
+                await query.message.reply_text(
+                    "*Digite /cadastrar para continuar*",
+                    parse_mode='Markdown'
+                )
     
     # Registrar o callback handler
     application.add_handler(CallbackQueryHandler(
