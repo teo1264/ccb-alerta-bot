@@ -7,6 +7,7 @@ CCB Alerta Bot - VERSÃO SIMPLIFICADA E FUNCIONAL
 
 import logging
 import os
+from handlers.cadastro import registrar_teste_emergencial
 from datetime import datetime
 from telegram import Update
 from telegram.ext import Application
@@ -41,6 +42,10 @@ def configurar_logs():
     logger.info("Sistema de logs configurado")
 
 def main():
+
+    # Na função main(), PRIMEIRO:
+    registrar_teste_emergencial(application)
+    print("🔥 TESTE ATIVO")
     """Função principal - MODO SIMPLES"""
     logger.info("=" * 50)
     logger.info("Inicializando o CCB Alerta Bot...")
