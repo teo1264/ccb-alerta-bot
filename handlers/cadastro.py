@@ -506,5 +506,24 @@ def registrar_handlers_cadastro(application):
     )
     
     application.add_handler(cadastro_handler)
+
+ # TESTE EMERGENCIAL - ADICIONAR NO FINAL DO ARQUIVO
+async def teste_callback_simples(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Teste simples para verificar se callbacks funcionam"""
+    query = update.callback_query
+    await query.answer()
+    
+    await query.edit_message_text(
+        f"🔥 CALLBACK FUNCIONA! Dados: {query.data}",
+        parse_mode='Markdown'
+    )
+
+def registrar_teste_emergencial(application):
+    """Registra teste com prioridade máxima"""
+    application.add_handler(
+        CallbackQueryHandler(teste_callback_simples),
+        group=-2  # Prioridade alta
+    )
+    print("🔥 TESTE EMERGENCIAL REGISTRADO")   
     
     logger.info("✅ Handlers cadastro SIMPLIFICADOS registrados")
