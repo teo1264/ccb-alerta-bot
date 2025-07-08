@@ -60,12 +60,24 @@ def main():
         application = Application.builder().token(TOKEN).build()
         
         # Registrar handlers
+        # No main(), após cada registrar_handlers:
         registrar_comandos_basicos(application)
+        logger.info("1️⃣ Comandos básicos registrados")
+
         registrar_handlers_admin(application)
+        logger.info("2️⃣ Handlers admin registrados")
+
         registrar_handlers_lgpd(application)
-        registrar_handlers_cadastro(application)     # ← MOVER PARA PENÚLTIMO
-        registrar_handlers_mensagens(application)    # ← DEIXAR POR ÚLTIMO
+        logger.info("3️⃣ Handlers LGPD registrados")
+
+        registrar_handlers_cadastro(application)
+        logger.info("4️⃣ Handlers cadastro registrados - PRIORIDADE")
+
+        registrar_handlers_mensagens(application)
+        logger.info("5️⃣ Handlers mensagens registrados - ÚLTIMO")
+
         registrar_error_handler(application)
+        logger.info("6️⃣ Error handler registrado")
         
         # FORÇAR MODO WEBHOOK SIMPLES
         if WEBHOOK_CONFIG['usar_webhook']:
