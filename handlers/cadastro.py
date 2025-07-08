@@ -46,6 +46,19 @@ from handlers.data import (
 # Logger
 logger = logging.getLogger(__name__)
 
+async def debug_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handler de debug para capturar TODOS os callbacks"""
+    if update.callback_query:
+        query = update.callback_query
+        logger.error(f"🔍 DEBUG CALLBACK CAPTURADO: '{query.data}' do usuário {query.from_user.id}")
+        logger.error(f"🔍 DEBUG CALLBACK MESSAGE ID: {query.message.message_id}")
+        logger.error(f"🔍 DEBUG CONVERSATION STATE: {context.user_data}")
+        
+        # NÃO fazer answer() aqui para não interferir
+        return
+    else:
+        logger.error(f"🔍 DEBUG: Update recebido mas não é callback_query: {type(update)}")
+
 # Estados adicionais para a navegação nos menus
 SELECIONAR_IGREJA, SELECIONAR_FUNCAO = range(4, 6)
 
@@ -759,5 +772,17 @@ def registrar_handlers_cadastro(application):
         per_message=False  # IMPORTANTE: Evita tracking por mensagem
     )
     application.add_handler(cadastro_handler)
+    
+    logger.info("✅ Handlers de cadastro registrados - CORREÇÃO DEFINITIVA APLICADA")
+
+def registrar_handlers_cadastro(application):
+    """
+    Registra handlers relacionados ao cadastro
+    VERSÃO DEFINITIVA: Correção completa de patterns e ordem
+    """
+    # ... todo o código existente ...
+    
+    # ADICIONAR ESTA LINHA NO FINAL, ANTES DO logger.info:
+    application.add_handler(CallbackQueryHandler(debug_callback_handler), group=99)
     
     logger.info("✅ Handlers de cadastro registrados - CORREÇÃO DEFINITIVA APLICADA")
