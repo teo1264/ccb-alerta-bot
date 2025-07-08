@@ -149,46 +149,73 @@ async def mostrar_menu_igrejas(update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"❌ Erro menu igrejas: {e}")
 
 async def processar_selecao_igreja(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Processa seleção de igreja - VERSÃO SIMPLIFICADA"""
+    """
+    Processa a seleção ou navegação no menu de igrejas
+    CORRIGIDO: Remove botões antes de mudar estado
+    """
     query = update.callback_query
     await query.answer()
     
     data = query.data
-    logger.info(f"🔍 CALLBACK IGREJA: '{data}'")
+    logger.info(f"Callback recebido: {data}")
+    
+    if data == "cancelar_cadastro":
+        # Limpar dados do contexto
+        if 'cadastro_temp' in context.user_data:
+            del context.user_data['cadastro_temp']
+        
+        await query.edit_message_text(
+            " *A Paz de Deus!*\n\n"
+            "❌ *Cadastro cancelado!*\n\n"
+            "Você pode iniciar novamente quando quiser usando /cadastrar.\n\n"
+            "_Deus te abençoe!_ 🙏",
+            parse_mode='Markdown'
+        )
+        return ConversationHandler.END
     
     if data == "igreja_anterior":
+        # Navegar para a página anterior
         context.user_data['cadastro_temp']['pagina_igreja'] -= 1
         await mostrar_menu_igrejas(query, context)
         return SELECIONAR_IGREJA
     
-    elif data == "igreja_proxima":
+    if data == "igreja_proxima":
+        # Navegar para a próxima página
         context.user_data['cadastro_temp']['pagina_igreja'] += 1
         await mostrar_menu_igrejas(query, context)
         return SELECIONAR_IGREJA
     
-    elif data == "cancelar_cadastro":
-        return await cancelar_cadastro(update, context)
-    
-    elif data.startswith("igreja_BR"):
+    # Selecionar igreja (verificar se começa com igreja_BR)
+    if data.startswith("igreja_BR"):
         codigo_igreja = data.replace("igreja_", "")
         igreja = obter_igreja_por_codigo(codigo_igreja)
         
         if igreja:
+            # Armazenar código e nome da igreja
             context.user_data['cadastro_temp']['codigo'] = igreja['codigo']
             context.user_data['cadastro_temp']['nome_igreja'] = igreja['nome']
             
-            logger.info(f"✅ Igreja selecionada: {igreja['codigo']}")
+            logger.info(f"Igreja selecionada: {igreja['codigo']} - {igreja['nome']}")
             
+            # CORREÇÃO: Remover TODOS os botões antes de mudar estado
             await query.edit_message_text(
-                f"*A Paz de Deus!*\n\n"
-                f"✅ Casa selecionada: *{igreja['codigo']} - {igreja['nome']}*\n\n"
-                f"Digite o NOME DO RESPONSÁVEL:",
+                f" *A Paz de Deus!*\n\n"
+                f"✅ Casa de Oração selecionada: *{igreja['codigo']} - {igreja['nome']}*\n\n"
+                f"Agora, DIGITE O NOME DO RESPONSÁVEL:",
                 parse_mode='Markdown'
+                # SEM reply_markup = remove todos os botões inline
             )
             return NOME
+        else:
+            logger.warning(f"Igreja não encontrada: {codigo_igreja}")
+            await mostrar_menu_igrejas(query, context)
+            return SELECIONAR_IGREJA
     
+    # Fallback - mostrar menu novamente
+    logger.warning(f"Callback data não reconhecido: {data}")
+    await mostrar_menu_igrejas(query, context)
     return SELECIONAR_IGREJA
-
+    
 async def receber_nome(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Recebe o nome - SIMPLIFICADO"""
     nome = update.message.text.strip()
