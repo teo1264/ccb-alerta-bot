@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-CCB Alerta Bot - VERSÃO CORRIGIDA
+CCB Alerta Bot - VERSÃO LIMPA (SEM TESTE EMERGENCIAL)
 """
 
 import logging
@@ -15,7 +15,7 @@ from config import (
     inicializar_sistema, verificar_diretorios
 )
 from handlers.commands import registrar_comandos_basicos
-from handlers.cadastro import registrar_handlers_cadastro, registrar_teste_emergencial
+from handlers.cadastro import registrar_handlers_cadastro
 from handlers.admin import registrar_handlers_admin
 from handlers.mensagens import registrar_handlers_mensagens
 from handlers.error import registrar_error_handler
@@ -41,7 +41,7 @@ def configurar_logs():
     logger.info("Sistema de logs configurado")
 
 def main():
-    """Função principal - VERSÃO CORRIGIDA"""
+    """Função principal - VERSÃO LIMPA"""
     logger.info("=" * 50)
     logger.info("Inicializando o CCB Alerta Bot...")
     logger.info("=" * 50)
@@ -59,11 +59,7 @@ def main():
         # Criar a aplicação
         application = Application.builder().token(TOKEN).build()
         
-        # TESTE EMERGENCIAL - PRIORIDADE MÁXIMA
-        registrar_teste_emergencial(application)
-        logger.info("🔥 TESTE EMERGENCIAL ATIVO")
-        
-        # Registrar handlers na ordem correta
+        # Registrar handlers na ordem correta (ConversationHandler PRIMEIRO)
         registrar_comandos_basicos(application)
         logger.info("1️⃣ Comandos básicos registrados")
 
@@ -82,11 +78,11 @@ def main():
         registrar_error_handler(application)
         logger.info("6️⃣ Error handler registrado")
         
-        # FORÇAR MODO WEBHOOK SIMPLES
+        # Modo produção: WEBHOOK ou POLLING
         if WEBHOOK_CONFIG['usar_webhook']:
-            logger.info("Modo WEBHOOK SIMPLES")
+            logger.info("Modo WEBHOOK ativo")
             
-            # Usar o webhook built-in do python-telegram-bot
+            # Webhook built-in do python-telegram-bot
             application.run_webhook(
                 listen="0.0.0.0",
                 port=WEBHOOK_CONFIG['porta'],
@@ -95,8 +91,8 @@ def main():
                 drop_pending_updates=PRODUCTION_CONFIG['drop_pending_updates']
             )
         else:
-            logger.info("Modo POLLING")
-            # Usar polling
+            logger.info("Modo POLLING ativo")
+            # Polling simples
             application.run_polling(
                 drop_pending_updates=PRODUCTION_CONFIG['drop_pending_updates'],
                 allowed_updates=PRODUCTION_CONFIG['allowed_updates'],
