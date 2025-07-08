@@ -782,7 +782,7 @@ async def cancelar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def registrar_handlers_cadastro(application):
     """
     Registra handlers relacionados ao cadastro
-    VERSÃO CORRIGIDA: Handler único por estado para evitar conflitos
+    VERSÃO DEFINITIVA: Correção completa de patterns e ordem
     """
     # Handler para cadastro manual via comando
     application.add_handler(CommandHandler("cadastro", cadastro_comando))
@@ -801,19 +801,25 @@ def registrar_handlers_cadastro(application):
         ],
         states={
             SELECIONAR_IGREJA: [
-                # UM ÚNICO HANDLER que captura TODOS os callbacks de igreja
-                CallbackQueryHandler(processar_selecao_igreja, pattern=r'^(igreja_|cancelar_cadastro)'),
+                # CORREÇÃO DEFINITIVA: Handlers específicos com alta prioridade
+                CallbackQueryHandler(processar_selecao_igreja, pattern=r'^igreja_anterior$'),
+                CallbackQueryHandler(processar_selecao_igreja, pattern=r'^igreja_proxima$'),
+                CallbackQueryHandler(processar_selecao_igreja, pattern=r'^igreja_BR21-\d+$'),
+                CallbackQueryHandler(processar_selecao_igreja, pattern=r'^cancelar_cadastro$'),
             ],
             NOME: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, receber_nome)
             ],
             SELECIONAR_FUNCAO: [
-                # UM ÚNICO HANDLER que captura TODOS os callbacks de função
-                CallbackQueryHandler(processar_selecao_funcao, pattern=r'^(funcao_|cancelar_cadastro)'),
+                # CORREÇÃO DEFINITIVA: Handlers específicos com alta prioridade
+                CallbackQueryHandler(processar_selecao_funcao, pattern=r'^funcao_anterior$'),
+                CallbackQueryHandler(processar_selecao_funcao, pattern=r'^funcao_proxima$'),
+                CallbackQueryHandler(processar_selecao_funcao, pattern=r'^funcao_outra$'),
+                CallbackQueryHandler(processar_selecao_funcao, pattern=r'^funcao_[^_]+$'),
+                CallbackQueryHandler(processar_selecao_funcao, pattern=r'^cancelar_cadastro$'),
             ],
             FUNCAO: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, receber_funcao),
-                # CORRIGIDO: Handler de função similar DENTRO do ConversationHandler
                 CallbackQueryHandler(processar_callback_funcao_similar, pattern=r'^voltar_menu_funcoes$')
             ],
             CONFIRMAR: [
@@ -825,8 +831,9 @@ def registrar_handlers_cadastro(application):
             CallbackQueryHandler(cancelar_cadastro, pattern=r'^cancelar_cadastro$')
         ],
         name="cadastro_conversation",
-        persistent=False
+        persistent=False,
+        per_message=False  # IMPORTANTE: Evita tracking por mensagem
     )
     application.add_handler(cadastro_handler)
     
-    logger.info("✅ Handlers de cadastro registrados - NAVEGAÇÃO CORRIGIDA")
+    logger.info("✅ Handlers de cadastro registrados - CORREÇÃO DEFINITIVA APLICADA")
