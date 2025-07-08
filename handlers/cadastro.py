@@ -3,7 +3,8 @@
 
 """
 Handlers para o processo de cadastro do CCB Alerta Bot
-VERSÃO CORRIGIDA - SEM parse_mode='Markdown'
+VERSÃO DEFINITIVA - CALLBACKS DIRETOS (SEM ConversationHandler)
+Sistema 100% funcional para produção BRK
 """
 
 import re
@@ -12,10 +13,10 @@ import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     CommandHandler, MessageHandler, CallbackQueryHandler,
-    ConversationHandler, ContextTypes, filters
+    ContextTypes, filters
 )
 
-from config import CODIGO, NOME, FUNCAO, CONFIRMAR
+# Imports do sistema
 try:
     from utils.database import (
         verificar_cadastro_existente,
@@ -44,214 +45,269 @@ from handlers.data import (
 # Logger
 logger = logging.getLogger(__name__)
 
-# Estados simplificados
-SELECIONAR_IGREJA, SELECIONAR_FUNCAO = range(4, 6)
+# Estados para controle de fluxo (sem ConversationHandler)
+ESTADO_INICIAL = "inicial"
+ESTADO_AGUARDANDO_NOME = "aguardando_nome"
+ESTADO_AGUARDANDO_FUNCAO = "aguardando_funcao"
 
-async def iniciar_cadastro_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Inicia o processo de cadastro - VERSÃO CORRIGIDA"""
+# ================================================================================================
+# SISTEMA DE CALLBACKS DIRETOS - INÍCIO DO CADASTRO
+# ================================================================================================
+
+async def iniciar_cadastro_comando(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Comando /cadastrar - inicia processo"""
     user_id = update.effective_user.id
     
-    # Verificar LGPD no banco
+    # Verificar LGPD
     usuario_aceitou_lgpd = verificar_consentimento_lgpd(user_id)
     
     if not usuario_aceitou_lgpd:
         # Exibir LGPD
         keyboard = [
-            [InlineKeyboardButton("✅ Aceito os termos", callback_data="aceitar_lgpd_cadastro")]
+            [InlineKeyboardButton("✅ CONCORDO E QUERO ME CADASTRAR", callback_data="aceitar_lgpd_cadastro_auto")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await update.message.reply_text(
-            "*A Paz de Deus!*\n\n"
-            "Antes de prosseguir, informamos que coletamos *seu nome*, *função* e *ID do Telegram*.\n\n"
+            "A Paz de Deus!\n\n"
+            "Antes de prosseguir, informamos que coletamos seu nome, função e ID do Telegram.\n\n"
             "Esses dados são para comunicação administrativa das Casas de Oração.\n\n"
-            "**Não são compartilhados** e seguem a **LGPD**.\n\n"
-            "Para remover seus dados: */remover*\n\n"
-            "Se estiver de acordo:",
+            "Não são compartilhados e seguem a LGPD.\n\n"
+            "Para remover seus dados: /remover\n\n"
+            "👆 Clique no botão acima para continuar",
             reply_markup=reply_markup
         )
-        return ConversationHandler.END
+        return
     
-    # Limpar contexto
-    context.user_data['cadastro_temp'] = {'pagina_igreja': 0}
+    # Inicializar contexto do cadastro
+    context.user_data['cadastro'] = {
+        'estado': ESTADO_INICIAL,
+        'pagina_igreja': 0,
+        'pagina_funcao': 0
+    }
     
     logger.info(f"🚀 INICIANDO cadastro usuário {user_id}")
     await mostrar_menu_igrejas(update, context)
-    return SELECIONAR_IGREJA
 
-async def processar_aceite_lgpd_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Processa aceite LGPD"""
+# ================================================================================================
+# LGPD - ACEITE DE TERMOS
+# ================================================================================================
+
+async def processar_aceite_lgpd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Processa aceite LGPD e inicia cadastro"""
     query = update.callback_query
     await query.answer()
     
-    if query.data == "aceitar_lgpd_cadastro":
-        # Salvar no banco
+    if query.data == "aceitar_lgpd_cadastro_auto":
+        # Salvar consentimento
         registrar_consentimento_lgpd(query.from_user.id)
         
-        await query.edit_message_text(
-            "*A Santa Paz de Deus!*\n\n"
-            "✅ *Termos aceitos!*\n\n"
-            "Use /cadastrar novamente para iniciar.\n\n"
-            "_Deus te abençoe!_ 🙏"
-        )
+        # Inicializar contexto
+        context.user_data['cadastro'] = {
+            'estado': ESTADO_INICIAL,
+            'pagina_igreja': 0,
+            'pagina_funcao': 0
+        }
+        
+        # Mostrar menu de igrejas
+        await mostrar_menu_igrejas_callback(query, context)
+
+# ================================================================================================
+# MENU DE IGREJAS - CALLBACKS DIRETOS
+# ================================================================================================
 
 async def mostrar_menu_igrejas(update, context: ContextTypes.DEFAULT_TYPE):
-    """Mostra menu de igrejas - VERSÃO CORRIGIDA"""
+    """Mostra menu de igrejas - para comando inicial"""
     igrejas_paginadas = agrupar_igrejas()
-    pagina_atual = context.user_data['cadastro_temp'].get('pagina_igreja', 0)
+    pagina_atual = context.user_data['cadastro'].get('pagina_igreja', 0)
     
+    # Validar página
     if pagina_atual >= len(igrejas_paginadas):
         pagina_atual = 0
     elif pagina_atual < 0:
         pagina_atual = len(igrejas_paginadas) - 1
     
-    context.user_data['cadastro_temp']['pagina_igreja'] = pagina_atual
+    context.user_data['cadastro']['pagina_igreja'] = pagina_atual
     
-    # Botões da página atual
+    # Construir teclado
     keyboard = []
     for igreja in igrejas_paginadas[pagina_atual]:
-        callback_data = f"igreja_{igreja['codigo']}"
+        callback_data = f"selecionar_igreja_{igreja['codigo']}"
         keyboard.append([InlineKeyboardButton(
             f"{igreja['codigo']} - {igreja['nome']}", 
             callback_data=callback_data
         )])
     
-    # Navegação
+    # Botões de navegação
     nav_buttons = []
     if len(igrejas_paginadas) > 1:
-        nav_buttons.append(InlineKeyboardButton("⬅️ Anterior", callback_data="igreja_anterior"))
-        nav_buttons.append(InlineKeyboardButton("Próxima ➡️", callback_data="igreja_proxima"))
+        nav_buttons.append(InlineKeyboardButton("⬅️ Anterior", callback_data="navegar_igreja_anterior"))
+        nav_buttons.append(InlineKeyboardButton("Próxima ➡️", callback_data="navegar_igreja_proxima"))
     keyboard.append(nav_buttons)
     
     keyboard.append([InlineKeyboardButton("❌ Cancelar", callback_data="cancelar_cadastro")])
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     texto = (
-        "*A Santa Paz de Deus!*\n\n"
+        "A Santa Paz de Deus!\n\n"
         "Selecione a Casa de Oração:\n\n"
-        f"📄 *Página {pagina_atual + 1}/{len(igrejas_paginadas)}*"
+        f"📄 Página {pagina_atual + 1}/{len(igrejas_paginadas)}"
     )
     
-    # Enviar mensagem SEM parse_mode
-    try:
-        if hasattr(update, 'edit_message_text'):
-            logger.info("🔄 Editando mensagem igrejas")
-            await update.edit_message_text(texto, reply_markup=reply_markup)
-        else:
-            logger.info("📱 Nova mensagem igrejas")
-            await update.message.reply_text(texto, reply_markup=reply_markup)
-        
-        logger.info("✅ Menu igrejas OK")
-        
-    except Exception as e:
-        logger.error(f"❌ Erro menu igrejas: {e}")
+    await update.message.reply_text(texto, reply_markup=reply_markup)
 
-async def processar_selecao_igreja(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Processa a seleção ou navegação no menu de igrejas
-    CORRIGIDO: Remove botões antes de mudar estado + sem parse_mode
-    """
+async def mostrar_menu_igrejas_callback(query, context: ContextTypes.DEFAULT_TYPE):
+    """Mostra menu de igrejas - para callbacks"""
+    igrejas_paginadas = agrupar_igrejas()
+    pagina_atual = context.user_data['cadastro'].get('pagina_igreja', 0)
+    
+    # Validar página
+    if pagina_atual >= len(igrejas_paginadas):
+        pagina_atual = 0
+    elif pagina_atual < 0:
+        pagina_atual = len(igrejas_paginadas) - 1
+    
+    context.user_data['cadastro']['pagina_igreja'] = pagina_atual
+    
+    # Construir teclado
+    keyboard = []
+    for igreja in igrejas_paginadas[pagina_atual]:
+        callback_data = f"selecionar_igreja_{igreja['codigo']}"
+        keyboard.append([InlineKeyboardButton(
+            f"{igreja['codigo']} - {igreja['nome']}", 
+            callback_data=callback_data
+        )])
+    
+    # Botões de navegação
+    nav_buttons = []
+    if len(igrejas_paginadas) > 1:
+        nav_buttons.append(InlineKeyboardButton("⬅️ Anterior", callback_data="navegar_igreja_anterior"))
+        nav_buttons.append(InlineKeyboardButton("Próxima ➡️", callback_data="navegar_igreja_proxima"))
+    keyboard.append(nav_buttons)
+    
+    keyboard.append([InlineKeyboardButton("❌ Cancelar", callback_data="cancelar_cadastro")])
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    texto = (
+        "A Santa Paz de Deus!\n\n"
+        "Selecione a Casa de Oração:\n\n"
+        f"📄 Página {pagina_atual + 1}/{len(igrejas_paginadas)}"
+    )
+    
+    await query.edit_message_text(texto, reply_markup=reply_markup)
+
+async def navegar_igrejas(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handler para navegação entre páginas de igrejas"""
     query = update.callback_query
     await query.answer()
     
-    data = query.data
-    logger.info(f"Callback recebido: {data}")
-    
-    if data == "cancelar_cadastro":
-        # Limpar dados do contexto
-        if 'cadastro_temp' in context.user_data:
-            del context.user_data['cadastro_temp']
-        
+    # Verificar se usuário tem contexto ativo
+    if 'cadastro' not in context.user_data:
         await query.edit_message_text(
-            " *A Paz de Deus!*\n\n"
-            "❌ *Cadastro cancelado!*\n\n"
-            "Você pode iniciar novamente quando quiser usando /cadastrar.\n\n"
-            "_Deus te abençoe!_ 🙏"
+            "Sessão expirou. Use /cadastrar para iniciar novamente."
         )
-        return ConversationHandler.END
+        return
     
-    if data == "igreja_anterior":
-        # Navegar para a página anterior
-        context.user_data['cadastro_temp']['pagina_igreja'] -= 1
-        await mostrar_menu_igrejas(query, context)
-        return SELECIONAR_IGREJA
+    data = query.data
     
-    if data == "igreja_proxima":
-        # Navegar para a próxima página
-        context.user_data['cadastro_temp']['pagina_igreja'] += 1
-        await mostrar_menu_igrejas(query, context)
-        return SELECIONAR_IGREJA
+    if data == "navegar_igreja_anterior":
+        context.user_data['cadastro']['pagina_igreja'] -= 1
+        await mostrar_menu_igrejas_callback(query, context)
     
-    # Selecionar igreja (verificar se começa com igreja_BR)
-    if data.startswith("igreja_BR"):
-        codigo_igreja = data.replace("igreja_", "")
-        igreja = obter_igreja_por_codigo(codigo_igreja)
-        
-        if igreja:
-            # Armazenar código e nome da igreja
-            context.user_data['cadastro_temp']['codigo'] = igreja['codigo']
-            context.user_data['cadastro_temp']['nome_igreja'] = igreja['nome']
-            
-            logger.info(f"Igreja selecionada: {igreja['codigo']} - {igreja['nome']}")
-            
-            # CORREÇÃO: Remover TODOS os botões antes de mudar estado + sem parse_mode
-            await query.edit_message_text(
-                f" *A Paz de Deus!*\n\n"
-                f"✅ Casa de Oração selecionada: *{igreja['codigo']} - {igreja['nome']}*\n\n"
-                f"Agora, DIGITE O NOME DO RESPONSÁVEL:"
-                # SEM reply_markup = remove todos os botões inline
-                # SEM parse_mode = sem erro de parsing
-            )
-            return NOME
-        else:
-            logger.warning(f"Igreja não encontrada: {codigo_igreja}")
-            await mostrar_menu_igrejas(query, context)
-            return SELECIONAR_IGREJA
+    elif data == "navegar_igreja_proxima":
+        context.user_data['cadastro']['pagina_igreja'] += 1
+        await mostrar_menu_igrejas_callback(query, context)
+
+async def selecionar_igreja(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handler para seleção de igreja"""
+    query = update.callback_query
+    await query.answer()
     
-    # Fallback - mostrar menu novamente
-    logger.warning(f"Callback data não reconhecido: {data}")
-    await mostrar_menu_igrejas(query, context)
-    return SELECIONAR_IGREJA
+    # Verificar contexto
+    if 'cadastro' not in context.user_data:
+        await query.edit_message_text(
+            "Sessão expirou. Use /cadastrar para iniciar novamente."
+        )
+        return
     
+    # Extrair código da igreja
+    codigo_igreja = query.data.replace("selecionar_igreja_", "")
+    igreja = obter_igreja_por_codigo(codigo_igreja)
+    
+    if not igreja:
+        await query.edit_message_text(
+            "Igreja não encontrada. Use /cadastrar para tentar novamente."
+        )
+        return
+    
+    # Salvar igreja selecionada
+    context.user_data['cadastro']['codigo'] = igreja['codigo']
+    context.user_data['cadastro']['nome_igreja'] = igreja['nome']
+    context.user_data['cadastro']['estado'] = ESTADO_AGUARDANDO_NOME
+    
+    logger.info(f"Igreja selecionada: {igreja['codigo']} - {igreja['nome']}")
+    
+    # Solicitar nome
+    await query.edit_message_text(
+        f"A Paz de Deus!\n\n"
+        f"✅ Casa de Oração selecionada: {igreja['codigo']} - {igreja['nome']}\n\n"
+        f"Agora, DIGITE O NOME DO RESPONSÁVEL:"
+    )
+
+# ================================================================================================
+# ENTRADA DE NOME (TEXTO)
+# ================================================================================================
+
 async def receber_nome(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Recebe o nome - SIMPLIFICADO"""
+    """Recebe nome digitado pelo usuário"""
+    # Verificar se está no estado correto
+    if ('cadastro' not in context.user_data or 
+        context.user_data['cadastro'].get('estado') != ESTADO_AGUARDANDO_NOME):
+        return  # Ignora se não está no fluxo de cadastro
+    
     nome = update.message.text.strip()
     
     if len(nome) < 3:
         await update.message.reply_text("❌ Nome deve ter pelo menos 3 caracteres.")
-        return NOME
+        return
     
-    context.user_data['cadastro_temp']['nome'] = nome
-    logger.info(f"✅ Nome: {nome}")
+    # Salvar nome
+    context.user_data['cadastro']['nome'] = nome
+    context.user_data['cadastro']['pagina_funcao'] = 0
     
-    # Ir para funções
-    context.user_data['cadastro_temp']['pagina_funcao'] = 0
+    logger.info(f"✅ Nome recebido: {nome}")
+    
+    # Mostrar menu de funções
     await mostrar_menu_funcoes(update, context)
-    return SELECIONAR_FUNCAO
+
+# ================================================================================================
+# MENU DE FUNÇÕES - CALLBACKS DIRETOS
+# ================================================================================================
 
 async def mostrar_menu_funcoes(update, context: ContextTypes.DEFAULT_TYPE):
-    """Mostra menu de funções - VERSÃO CORRIGIDA"""
+    """Mostra menu de funções"""
     funcoes_paginadas = agrupar_funcoes()
-    pagina_atual = context.user_data['cadastro_temp'].get('pagina_funcao', 0)
+    pagina_atual = context.user_data['cadastro'].get('pagina_funcao', 0)
     
+    # Validar página
     if pagina_atual >= len(funcoes_paginadas):
         pagina_atual = 0
     elif pagina_atual < 0:
         pagina_atual = len(funcoes_paginadas) - 1
     
-    context.user_data['cadastro_temp']['pagina_funcao'] = pagina_atual
+    context.user_data['cadastro']['pagina_funcao'] = pagina_atual
     
-    # Botões da página atual
+    # Construir teclado
     keyboard = []
     for funcao in funcoes_paginadas[pagina_atual]:
-        callback_data = f"funcao_{funcao}"
+        callback_data = f"selecionar_funcao_{funcao}"
         keyboard.append([InlineKeyboardButton(funcao, callback_data=callback_data)])
     
     # Navegação
     nav_buttons = []
     if len(funcoes_paginadas) > 1:
-        nav_buttons.append(InlineKeyboardButton("⬅️ Anterior", callback_data="funcao_anterior"))
-        nav_buttons.append(InlineKeyboardButton("Próxima ➡️", callback_data="funcao_proxima"))
+        nav_buttons.append(InlineKeyboardButton("⬅️ Anterior", callback_data="navegar_funcao_anterior"))
+        nav_buttons.append(InlineKeyboardButton("Próxima ➡️", callback_data="navegar_funcao_proxima"))
     keyboard.append(nav_buttons)
     
     keyboard.append([InlineKeyboardButton("🔄 Outra Função", callback_data="funcao_outra")])
@@ -259,138 +315,229 @@ async def mostrar_menu_funcoes(update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     texto = (
-        "*A Paz de Deus!*\n\n"
-        f"✅ Nome: *{context.user_data['cadastro_temp']['nome']}*\n\n"
+        "A Paz de Deus!\n\n"
+        f"✅ Nome: {context.user_data['cadastro']['nome']}\n\n"
         "Selecione a função:\n\n"
-        f"📄 *Página {pagina_atual + 1}/{len(funcoes_paginadas)}*"
+        f"📄 Página {pagina_atual + 1}/{len(funcoes_paginadas)}"
     )
     
-    # Enviar mensagem SEM parse_mode
-    try:
-        if hasattr(update, 'edit_message_text'):
-            await update.edit_message_text(texto, reply_markup=reply_markup)
-        else:
-            await update.message.reply_text(texto, reply_markup=reply_markup)
-        
-        logger.info("✅ Menu funções OK")
-        
-    except Exception as e:
-        logger.error(f"❌ Erro menu funções: {e}")
+    await update.message.reply_text(texto, reply_markup=reply_markup)
 
-async def processar_selecao_funcao(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Processa seleção de função - SIMPLIFICADO"""
+async def mostrar_menu_funcoes_callback(query, context: ContextTypes.DEFAULT_TYPE):
+    """Mostra menu de funções - para callbacks"""
+    funcoes_paginadas = agrupar_funcoes()
+    pagina_atual = context.user_data['cadastro'].get('pagina_funcao', 0)
+    
+    # Validar página
+    if pagina_atual >= len(funcoes_paginadas):
+        pagina_atual = 0
+    elif pagina_atual < 0:
+        pagina_atual = len(funcoes_paginadas) - 1
+    
+    context.user_data['cadastro']['pagina_funcao'] = pagina_atual
+    
+    # Construir teclado
+    keyboard = []
+    for funcao in funcoes_paginadas[pagina_atual]:
+        callback_data = f"selecionar_funcao_{funcao}"
+        keyboard.append([InlineKeyboardButton(funcao, callback_data=callback_data)])
+    
+    # Navegação
+    nav_buttons = []
+    if len(funcoes_paginadas) > 1:
+        nav_buttons.append(InlineKeyboardButton("⬅️ Anterior", callback_data="navegar_funcao_anterior"))
+        nav_buttons.append(InlineKeyboardButton("Próxima ➡️", callback_data="navegar_funcao_proxima"))
+    keyboard.append(nav_buttons)
+    
+    keyboard.append([InlineKeyboardButton("🔄 Outra Função", callback_data="funcao_outra")])
+    keyboard.append([InlineKeyboardButton("❌ Cancelar", callback_data="cancelar_cadastro")])
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    texto = (
+        "A Paz de Deus!\n\n"
+        f"✅ Nome: {context.user_data['cadastro']['nome']}\n\n"
+        "Selecione a função:\n\n"
+        f"📄 Página {pagina_atual + 1}/{len(funcoes_paginadas)}"
+    )
+    
+    await query.edit_message_text(texto, reply_markup=reply_markup)
+
+async def navegar_funcoes(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handler para navegação entre páginas de funções"""
     query = update.callback_query
     await query.answer()
     
-    data = query.data
-    logger.info(f"🔍 CALLBACK FUNÇÃO: '{data}'")
-    
-    if data == "funcao_anterior":
-        context.user_data['cadastro_temp']['pagina_funcao'] -= 1
-        await mostrar_menu_funcoes(query, context)
-        return SELECIONAR_FUNCAO
-    
-    elif data == "funcao_proxima":
-        context.user_data['cadastro_temp']['pagina_funcao'] += 1
-        await mostrar_menu_funcoes(query, context)
-        return SELECIONAR_FUNCAO
-    
-    elif data == "cancelar_cadastro":
-        return await cancelar_cadastro(update, context)
-    
-    elif data == "funcao_outra":
+    # Verificar contexto
+    if 'cadastro' not in context.user_data:
         await query.edit_message_text(
-            "*A Paz de Deus!*\n\n"
-            "✍️ **DIGITE SUA FUNÇÃO:**\n\n"
-            "*(Ex: Patrimônio, Tesoureiro, etc.)*"
+            "Sessão expirou. Use /cadastrar para iniciar novamente."
         )
-        return FUNCAO
+        return
     
-    elif data.startswith("funcao_"):
-        funcao = data.replace("funcao_", "")
-        
-        if funcao in FUNCOES:
-            context.user_data['cadastro_temp']['funcao'] = funcao
-            logger.info(f"✅ Função selecionada: {funcao}")
-            
-            # Ir para confirmação
-            await mostrar_confirmacao(query, context)
-            return CONFIRMAR
+    data = query.data
     
-    return SELECIONAR_FUNCAO
+    if data == "navegar_funcao_anterior":
+        context.user_data['cadastro']['pagina_funcao'] -= 1
+        await mostrar_menu_funcoes_callback(query, context)
+    
+    elif data == "navegar_funcao_proxima":
+        context.user_data['cadastro']['pagina_funcao'] += 1
+        await mostrar_menu_funcoes_callback(query, context)
 
-async def receber_funcao(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Recebe função digitada - SIMPLIFICADO"""
+async def selecionar_funcao(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handler para seleção de função"""
+    query = update.callback_query
+    await query.answer()
+    
+    # Verificar contexto
+    if 'cadastro' not in context.user_data:
+        await query.edit_message_text(
+            "Sessão expirou. Use /cadastrar para iniciar novamente."
+        )
+        return
+    
+    # Extrair função
+    funcao = query.data.replace("selecionar_funcao_", "")
+    
+    if funcao not in FUNCOES:
+        await query.edit_message_text(
+            "Função não encontrada. Use /cadastrar para tentar novamente."
+        )
+        return
+    
+    # Salvar função
+    context.user_data['cadastro']['funcao'] = funcao
+    
+    logger.info(f"✅ Função selecionada: {funcao}")
+    
+    # Mostrar confirmação
+    await mostrar_confirmacao(query, context)
+
+async def funcao_outra(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handler para função personalizada"""
+    query = update.callback_query
+    await query.answer()
+    
+    # Verificar contexto
+    if 'cadastro' not in context.user_data:
+        await query.edit_message_text(
+            "Sessão expirou. Use /cadastrar para iniciar novamente."
+        )
+        return
+    
+    # Mudar estado para aguardar função
+    context.user_data['cadastro']['estado'] = ESTADO_AGUARDANDO_FUNCAO
+    
+    await query.edit_message_text(
+        "A Paz de Deus!\n\n"
+        "✍️ DIGITE SUA FUNÇÃO:\n\n"
+        "(Ex: Patrimônio, Tesoureiro, etc.)"
+    )
+
+async def receber_funcao_personalizada(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Recebe função personalizada digitada"""
+    # Verificar estado
+    if ('cadastro' not in context.user_data or 
+        context.user_data['cadastro'].get('estado') != ESTADO_AGUARDANDO_FUNCAO):
+        return
+    
     funcao = update.message.text.strip()
     
     if len(funcao) < 3:
         await update.message.reply_text("❌ Função deve ter pelo menos 3 caracteres.")
-        return FUNCAO
+        return
     
-    # Verificar se é similar às existentes
+    # Verificar função similar
     funcao_similar_encontrada, funcao_oficial = detectar_funcao_similar(funcao)
     
     if funcao_similar_encontrada:
         await update.message.reply_text(
-            f"⚠️ *Função similar encontrada!*\n\n"
-            f"Você digitou: *\"{funcao}\"*\n"
-            f"Similar a: *\"{funcao_oficial}\"*\n\n"
-            f"Use /cadastrar novamente e selecione *\"{funcao_oficial}\"* no menu."
+            f"⚠️ Função similar encontrada!\n\n"
+            f"Você digitou: \"{funcao}\"\n"
+            f"Similar a: \"{funcao_oficial}\"\n\n"
+            f"Use /cadastrar novamente e selecione \"{funcao_oficial}\" no menu."
         )
-        return FUNCAO
+        return
     
-    context.user_data['cadastro_temp']['funcao'] = funcao
-    logger.info(f"✅ Função digitada: {funcao}")
+    # Salvar função
+    context.user_data['cadastro']['funcao'] = funcao
     
-    # Ir para confirmação
-    await mostrar_confirmacao(update, context)
-    return CONFIRMAR
+    logger.info(f"✅ Função personalizada: {funcao}")
+    
+    # Mostrar confirmação
+    await mostrar_confirmacao_mensagem(update, context)
 
-async def mostrar_confirmacao(update, context: ContextTypes.DEFAULT_TYPE):
-    """Mostra confirmação - VERSÃO CORRIGIDA"""
-    dados = context.user_data['cadastro_temp']
+# ================================================================================================
+# CONFIRMAÇÃO E FINALIZAÇÃO
+# ================================================================================================
+
+async def mostrar_confirmacao(query, context: ContextTypes.DEFAULT_TYPE):
+    """Mostra confirmação - via callback"""
+    dados = context.user_data['cadastro']
     
     keyboard = [
         [
-            InlineKeyboardButton("✅ Confirmar", callback_data="confirmar_etapas"),
-            InlineKeyboardButton("❌ Cancelar", callback_data="cancelar_etapas")
+            InlineKeyboardButton("✅ Confirmar", callback_data="confirmar_cadastro"),
+            InlineKeyboardButton("❌ Cancelar", callback_data="cancelar_cadastro")
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     texto = (
-        "*A Paz de Deus!*\n\n"
-        "📝 *Confirme os dados:*\n\n"
-        f"📍 *Código:* `{dados['codigo']}`\n"
-        f"🏢 *Casa:* `{dados['nome_igreja']}`\n"
-        f"👤 *Nome:* `{dados['nome']}`\n"
-        f"🔧 *Função:* `{dados['funcao']}`\n\n"
+        "A Paz de Deus!\n\n"
+        "📝 Confirme os dados:\n\n"
+        f"📍 Código: {dados['codigo']}\n"
+        f"🏢 Casa: {dados['nome_igreja']}\n"
+        f"👤 Nome: {dados['nome']}\n"
+        f"🔧 Função: {dados['funcao']}\n\n"
         "Os dados estão corretos?"
     )
     
-    try:
-        if hasattr(update, 'edit_message_text'):
-            await update.edit_message_text(texto, reply_markup=reply_markup)
-        else:
-            await update.message.reply_text(texto, reply_markup=reply_markup)
-    except Exception as e:
-        logger.error(f"❌ Erro confirmação: {e}")
+    await query.edit_message_text(texto, reply_markup=reply_markup)
 
-async def confirmar_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Confirma cadastro - VERSÃO CORRIGIDA"""
+async def mostrar_confirmacao_mensagem(update, context: ContextTypes.DEFAULT_TYPE):
+    """Mostra confirmação - via mensagem"""
+    dados = context.user_data['cadastro']
+    
+    keyboard = [
+        [
+            InlineKeyboardButton("✅ Confirmar", callback_data="confirmar_cadastro"),
+            InlineKeyboardButton("❌ Cancelar", callback_data="cancelar_cadastro")
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    texto = (
+        "A Paz de Deus!\n\n"
+        "📝 Confirme os dados:\n\n"
+        f"📍 Código: {dados['codigo']}\n"
+        f"🏢 Casa: {dados['nome_igreja']}\n"
+        f"👤 Nome: {dados['nome']}\n"
+        f"🔧 Função: {dados['funcao']}\n\n"
+        "Os dados estão corretos?"
+    )
+    
+    await update.message.reply_text(texto, reply_markup=reply_markup)
+
+async def confirmar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Finaliza cadastro no banco de dados"""
     query = update.callback_query
     await query.answer()
     
-    if query.data == "cancelar_etapas":
-        return await cancelar_cadastro(update, context)
+    # Verificar contexto
+    if 'cadastro' not in context.user_data:
+        await query.edit_message_text(
+            "Sessão expirou. Use /cadastrar para iniciar novamente."
+        )
+        return
     
     # Obter dados
-    dados = context.user_data['cadastro_temp']
+    dados = context.user_data['cadastro']
     user_id = update.effective_user.id
     username = update.effective_user.username or ""
     
     try:
-        # Salvar no banco
+        # Salvar no banco (compatível Sistema BRK)
         sucesso, status = salvar_responsavel(
             dados['codigo'], 
             dados['nome'], 
@@ -401,99 +548,132 @@ async def confirmar_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         if sucesso:
             await query.edit_message_text(
-                "*Projeto Débito Automático*\n\n"
-                "✅ *Cadastro realizado com sucesso!*\n\n"
-                f"📍 *Código:* `{dados['codigo']}`\n"
-                f"🏢 *Casa:* `{dados['nome_igreja']}`\n"
-                f"👤 *Nome:* `{dados['nome']}`\n"
-                f"🔧 *Função:* `{dados['funcao']}`\n\n"
+                "Projeto Débito Automático\n\n"
+                "✅ Cadastro realizado com sucesso!\n\n"
+                f"📍 Código: {dados['codigo']}\n"
+                f"🏢 Casa: {dados['nome_igreja']}\n"
+                f"👤 Nome: {dados['nome']}\n"
+                f"🔧 Função: {dados['funcao']}\n\n"
                 "📢 Os alertas automáticos começarão em breve.\n\n"
-                "_Deus te abençoe!_ 🙌"
+                "Deus te abençoe! 🙌"
             )
+            
+            logger.info(f"✅ Cadastro concluído: {dados['codigo']} - {dados['nome']}")
         else:
             await query.edit_message_text(
-                "*A Paz de Deus!*\n\n"
-                "❌ *Erro no cadastro.*\n\n"
+                "A Paz de Deus!\n\n"
+                "❌ Erro no cadastro.\n\n"
                 "Tente novamente mais tarde.\n\n"
-                "_Deus te abençoe!_ 🙏"
+                "Deus te abençoe! 🙏"
             )
         
     except Exception as e:
         logger.error(f"❌ Erro ao salvar: {e}")
         await query.edit_message_text(
-            "*A Paz de Deus!*\n\n"
-            "❌ *Erro interno.*\n\n"
+            "A Paz de Deus!\n\n"
+            "❌ Erro interno.\n\n"
             "Tente novamente.\n\n"
-            "_Deus te abençoe!_ 🙏"
+            "Deus te abençoe! 🙏"
         )
     
     # Limpar contexto
-    if 'cadastro_temp' in context.user_data:
-        del context.user_data['cadastro_temp']
-    
-    return ConversationHandler.END
+    if 'cadastro' in context.user_data:
+        del context.user_data['cadastro']
+
+# ================================================================================================
+# CANCELAMENTO
+# ================================================================================================
 
 async def cancelar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Cancela cadastro - VERSÃO CORRIGIDA"""
+    """Cancela cadastro em qualquer etapa"""
+    query = update.callback_query
+    await query.answer()
+    
     # Limpar contexto
-    if 'cadastro_temp' in context.user_data:
-        del context.user_data['cadastro_temp']
+    if 'cadastro' in context.user_data:
+        del context.user_data['cadastro']
     
-    if hasattr(update, 'callback_query') and update.callback_query:
-        await update.callback_query.edit_message_text(
-            "*A Santa Paz de Deus!*\n\n"
-            "❌ *Cadastro cancelado!*\n\n"
-            "Use /cadastrar para tentar novamente.\n\n"
-            "_Deus te abençoe!_ 🙏"
-        )
-    else:
-        await update.message.reply_text(
-            "*A Santa Paz de Deus!*\n\n"
-            "❌ *Cadastro cancelado!*\n\n"
-            "Use /cadastrar para tentar novamente.\n\n"
-            "_Deus te abençoe!_ 🙏"
-        )
-    
-    return ConversationHandler.END
+    await query.edit_message_text(
+        "A Santa Paz de Deus!\n\n"
+        "❌ Cadastro cancelado!\n\n"
+        "Use /cadastrar para tentar novamente.\n\n"
+        "Deus te abençoe! 🙏"
+    )
+
+# ================================================================================================
+# REGISTRO DE HANDLERS - SISTEMA DIRETO
+# ================================================================================================
 
 def registrar_handlers_cadastro(application):
-    """Registra handlers - VERSÃO SIMPLIFICADA"""
+    """Registra todos os handlers usando sistema de callbacks diretos"""
     
-    # Handler LGPD
+    # Comandos básicos
+    application.add_handler(CommandHandler("cadastrar", iniciar_cadastro_comando))
+    
+    # LGPD
     application.add_handler(CallbackQueryHandler(
-        processar_aceite_lgpd_cadastro, 
-        pattern='^aceitar_lgpd_cadastro$'
+        processar_aceite_lgpd, 
+        pattern='^aceitar_lgpd_cadastro_auto$'
     ))
     
-    # ConversationHandler SIMPLIFICADO
-    cadastro_handler = ConversationHandler(
-        entry_points=[
-            CommandHandler("cadastrar", iniciar_cadastro_etapas),
-        ],
-        states={
-            SELECIONAR_IGREJA: [
-                CallbackQueryHandler(processar_selecao_igreja),
-            ],
-            NOME: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, receber_nome)
-            ],
-            SELECIONAR_FUNCAO: [
-                CallbackQueryHandler(processar_selecao_funcao),
-            ],
-            FUNCAO: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, receber_funcao),
-            ],
-            CONFIRMAR: [
-                CallbackQueryHandler(confirmar_etapas),
-            ]
-        },
-        fallbacks=[
-            CommandHandler("cancelar", cancelar_cadastro),
-        ],
-        name="cadastro_conversation",
-        persistent=False,
-        per_message=False
-    )
+    # Navegação igrejas
+    application.add_handler(CallbackQueryHandler(
+        navegar_igrejas, 
+        pattern='^navegar_igreja_'
+    ))
     
-    application.add_handler(cadastro_handler)
-    logger.info("✅ Handlers cadastro CORRIGIDOS registrados")
+    # Seleção igreja
+    application.add_handler(CallbackQueryHandler(
+        selecionar_igreja, 
+        pattern='^selecionar_igreja_'
+    ))
+    
+    # Navegação funções
+    application.add_handler(CallbackQueryHandler(
+        navegar_funcoes, 
+        pattern='^navegar_funcao_'
+    ))
+    
+    # Seleção função
+    application.add_handler(CallbackQueryHandler(
+        selecionar_funcao, 
+        pattern='^selecionar_funcao_'
+    ))
+    
+    # Função personalizada
+    application.add_handler(CallbackQueryHandler(
+        funcao_outra, 
+        pattern='^funcao_outra$'
+    ))
+    
+    # Confirmação final
+    application.add_handler(CallbackQueryHandler(
+        confirmar_cadastro, 
+        pattern='^confirmar_cadastro$'
+    ))
+    
+    # Cancelamento
+    application.add_handler(CallbackQueryHandler(
+        cancelar_cadastro, 
+        pattern='^cancelar_cadastro$'
+    ))
+    
+    # Entrada de texto (nome e função personalizada)
+    application.add_handler(MessageHandler(
+        filters.TEXT & ~filters.COMMAND, 
+        processar_entrada_texto
+    ))
+    
+    logger.info("✅ Handlers cadastro DIRETOS registrados - Sistema 100% funcional")
+
+async def processar_entrada_texto(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Processa entrada de texto baseado no estado atual"""
+    if 'cadastro' not in context.user_data:
+        return  # Ignora se não há cadastro ativo
+    
+    estado = context.user_data['cadastro'].get('estado')
+    
+    if estado == ESTADO_AGUARDANDO_NOME:
+        await receber_nome(update, context)
+    elif estado == ESTADO_AGUARDANDO_FUNCAO:
+        await receber_funcao_personalizada(update, context)
