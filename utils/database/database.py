@@ -121,28 +121,43 @@ def get_connection():
 
 def _sincronizar_apos_modificacao():
     """
-    OTIMIZADO: Upload assíncrono simples
+    TEMPORARIAMENTE DESABILITADO - Causava conflito com ConversationHandler
+    
+    A execução de threads assíncronos após cada operação de banco estava
+    interferindo com o estado do ConversationHandler, causando congelamento
+    dos botões de navegação (Anterior/Próxima/Cancelar).
+    
+    ANTES: Cada clique → sync thread → ConversationHandler perdia estado
+    DEPOIS: Sync apenas para operações finais (cadastros completos)
+    
+    TODO: Implementar sync inteligente que não interfere com navegação
     """
     global _onedrive_manager
     
-    if _onedrive_manager:
-        try:
-            def upload_thread():
-                try:
-                    db_path = "/opt/render/project/storage/alertas_bot_cache.db"
-                    if os.path.exists(db_path):
-                        _onedrive_manager.upload_database(db_path)
-                        logger.info("✅ Upload assíncrono concluído")
-                except Exception as e:
-                    logger.warning(f"⚠️ Upload assíncrono falhou: {e}")
-            
-            # Upload em thread separada (não bloqueia resposta)
-            threading.Thread(target=upload_thread, daemon=True).start()
-            logger.debug("📤 Upload assíncrono iniciado")
-            
-        except Exception as e:
-            logger.warning(f"⚠️ Erro upload assíncrono: {e}")
-
+    # Log para debug
+    logger.debug("🔇 Sync automático desabilitado para corrigir navegação de botões")
+    
+    # DESABILITADO: Upload assíncrono que causava conflito
+    # if _onedrive_manager:
+    #     try:
+    #         def upload_thread():
+    #             try:
+    #                 db_path = "/opt/render/project/storage/alertas_bot_cache.db"
+    #                 if os.path.exists(db_path):
+    #                     _onedrive_manager.upload_database(db_path)
+    #                     logger.info("✅ Upload assíncrono concluído")
+    #             except Exception as e:
+    #                 logger.warning(f"⚠️ Upload assíncrono falhou: {e}")
+    #         
+    #         threading.Thread(target=upload_thread, daemon=True).start()
+    #         logger.debug("📤 Upload assíncrono iniciado")
+    #         
+    #     except Exception as e:
+    #         logger.warning(f"⚠️ Erro upload assíncrono: {e}")
+    
+    # Função agora é no-op (não faz nada) para preservar compatibilidade
+    pass
+    
 def init_database():
     """
     CORRIGIDO: Inicializa o banco de dados com as tabelas necessárias
