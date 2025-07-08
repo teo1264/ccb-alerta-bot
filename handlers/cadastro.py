@@ -3,7 +3,7 @@
 
 """
 Handlers para o processo de cadastro do CCB Alerta Bot
-VERSÃO SIMPLIFICADA - FOCO EM FUNCIONAR
+VERSÃO CORRIGIDA - SEM parse_mode='Markdown'
 """
 
 import re
@@ -48,7 +48,7 @@ logger = logging.getLogger(__name__)
 SELECIONAR_IGREJA, SELECIONAR_FUNCAO = range(4, 6)
 
 async def iniciar_cadastro_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Inicia o processo de cadastro - VERSÃO SIMPLIFICADA"""
+    """Inicia o processo de cadastro - VERSÃO CORRIGIDA"""
     user_id = update.effective_user.id
     
     # Verificar LGPD no banco
@@ -68,8 +68,7 @@ async def iniciar_cadastro_etapas(update: Update, context: ContextTypes.DEFAULT_
             "**Não são compartilhados** e seguem a **LGPD**.\n\n"
             "Para remover seus dados: */remover*\n\n"
             "Se estiver de acordo:",
-            reply_markup=reply_markup,
-            parse_mode='Markdown'
+            reply_markup=reply_markup
         )
         return ConversationHandler.END
     
@@ -93,12 +92,11 @@ async def processar_aceite_lgpd_cadastro(update: Update, context: ContextTypes.D
             "*A Santa Paz de Deus!*\n\n"
             "✅ *Termos aceitos!*\n\n"
             "Use /cadastrar novamente para iniciar.\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
+            "_Deus te abençoe!_ 🙏"
         )
 
 async def mostrar_menu_igrejas(update, context: ContextTypes.DEFAULT_TYPE):
-    """Mostra menu de igrejas - VERSÃO SIMPLIFICADA"""
+    """Mostra menu de igrejas - VERSÃO CORRIGIDA"""
     igrejas_paginadas = agrupar_igrejas()
     pagina_atual = context.user_data['cadastro_temp'].get('pagina_igreja', 0)
     
@@ -134,14 +132,14 @@ async def mostrar_menu_igrejas(update, context: ContextTypes.DEFAULT_TYPE):
         f"📄 *Página {pagina_atual + 1}/{len(igrejas_paginadas)}*"
     )
     
-    # Enviar mensagem
+    # Enviar mensagem SEM parse_mode
     try:
         if hasattr(update, 'edit_message_text'):
             logger.info("🔄 Editando mensagem igrejas")
-            await update.edit_message_text(texto, reply_markup=reply_markup, parse_mode='Markdown')
+            await update.edit_message_text(texto, reply_markup=reply_markup)
         else:
             logger.info("📱 Nova mensagem igrejas")
-            await update.message.reply_text(texto, reply_markup=reply_markup, parse_mode='Markdown')
+            await update.message.reply_text(texto, reply_markup=reply_markup)
         
         logger.info("✅ Menu igrejas OK")
         
@@ -151,7 +149,7 @@ async def mostrar_menu_igrejas(update, context: ContextTypes.DEFAULT_TYPE):
 async def processar_selecao_igreja(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Processa a seleção ou navegação no menu de igrejas
-    CORRIGIDO: Remove botões antes de mudar estado
+    CORRIGIDO: Remove botões antes de mudar estado + sem parse_mode
     """
     query = update.callback_query
     await query.answer()
@@ -168,8 +166,7 @@ async def processar_selecao_igreja(update: Update, context: ContextTypes.DEFAULT
             " *A Paz de Deus!*\n\n"
             "❌ *Cadastro cancelado!*\n\n"
             "Você pode iniciar novamente quando quiser usando /cadastrar.\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
+            "_Deus te abençoe!_ 🙏"
         )
         return ConversationHandler.END
     
@@ -197,13 +194,13 @@ async def processar_selecao_igreja(update: Update, context: ContextTypes.DEFAULT
             
             logger.info(f"Igreja selecionada: {igreja['codigo']} - {igreja['nome']}")
             
-            # CORREÇÃO: Remover TODOS os botões antes de mudar estado
+            # CORREÇÃO: Remover TODOS os botões antes de mudar estado + sem parse_mode
             await query.edit_message_text(
                 f" *A Paz de Deus!*\n\n"
                 f"✅ Casa de Oração selecionada: *{igreja['codigo']} - {igreja['nome']}*\n\n"
-                f"Agora, DIGITE O NOME DO RESPONSÁVEL:",
-                parse_mode='Markdown'
+                f"Agora, DIGITE O NOME DO RESPONSÁVEL:"
                 # SEM reply_markup = remove todos os botões inline
+                # SEM parse_mode = sem erro de parsing
             )
             return NOME
         else:
@@ -233,7 +230,7 @@ async def receber_nome(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return SELECIONAR_FUNCAO
 
 async def mostrar_menu_funcoes(update, context: ContextTypes.DEFAULT_TYPE):
-    """Mostra menu de funções - SIMPLIFICADO"""
+    """Mostra menu de funções - VERSÃO CORRIGIDA"""
     funcoes_paginadas = agrupar_funcoes()
     pagina_atual = context.user_data['cadastro_temp'].get('pagina_funcao', 0)
     
@@ -268,12 +265,12 @@ async def mostrar_menu_funcoes(update, context: ContextTypes.DEFAULT_TYPE):
         f"📄 *Página {pagina_atual + 1}/{len(funcoes_paginadas)}*"
     )
     
-    # Enviar mensagem
+    # Enviar mensagem SEM parse_mode
     try:
         if hasattr(update, 'edit_message_text'):
-            await update.edit_message_text(texto, reply_markup=reply_markup, parse_mode='Markdown')
+            await update.edit_message_text(texto, reply_markup=reply_markup)
         else:
-            await update.message.reply_text(texto, reply_markup=reply_markup, parse_mode='Markdown')
+            await update.message.reply_text(texto, reply_markup=reply_markup)
         
         logger.info("✅ Menu funções OK")
         
@@ -305,8 +302,7 @@ async def processar_selecao_funcao(update: Update, context: ContextTypes.DEFAULT
         await query.edit_message_text(
             "*A Paz de Deus!*\n\n"
             "✍️ **DIGITE SUA FUNÇÃO:**\n\n"
-            "*(Ex: Patrimônio, Tesoureiro, etc.)*",
-            parse_mode='Markdown'
+            "*(Ex: Patrimônio, Tesoureiro, etc.)*"
         )
         return FUNCAO
     
@@ -339,8 +335,7 @@ async def receber_funcao(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"⚠️ *Função similar encontrada!*\n\n"
             f"Você digitou: *\"{funcao}\"*\n"
             f"Similar a: *\"{funcao_oficial}\"*\n\n"
-            f"Use /cadastrar novamente e selecione *\"{funcao_oficial}\"* no menu.",
-            parse_mode='Markdown'
+            f"Use /cadastrar novamente e selecione *\"{funcao_oficial}\"* no menu."
         )
         return FUNCAO
     
@@ -352,7 +347,7 @@ async def receber_funcao(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return CONFIRMAR
 
 async def mostrar_confirmacao(update, context: ContextTypes.DEFAULT_TYPE):
-    """Mostra confirmação - SIMPLIFICADO"""
+    """Mostra confirmação - VERSÃO CORRIGIDA"""
     dados = context.user_data['cadastro_temp']
     
     keyboard = [
@@ -375,14 +370,14 @@ async def mostrar_confirmacao(update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         if hasattr(update, 'edit_message_text'):
-            await update.edit_message_text(texto, reply_markup=reply_markup, parse_mode='Markdown')
+            await update.edit_message_text(texto, reply_markup=reply_markup)
         else:
-            await update.message.reply_text(texto, reply_markup=reply_markup, parse_mode='Markdown')
+            await update.message.reply_text(texto, reply_markup=reply_markup)
     except Exception as e:
         logger.error(f"❌ Erro confirmação: {e}")
 
 async def confirmar_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Confirma cadastro - SIMPLIFICADO"""
+    """Confirma cadastro - VERSÃO CORRIGIDA"""
     query = update.callback_query
     await query.answer()
     
@@ -413,16 +408,14 @@ async def confirmar_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"👤 *Nome:* `{dados['nome']}`\n"
                 f"🔧 *Função:* `{dados['funcao']}`\n\n"
                 "📢 Os alertas automáticos começarão em breve.\n\n"
-                "_Deus te abençoe!_ 🙌",
-                parse_mode='Markdown'
+                "_Deus te abençoe!_ 🙌"
             )
         else:
             await query.edit_message_text(
                 "*A Paz de Deus!*\n\n"
                 "❌ *Erro no cadastro.*\n\n"
                 "Tente novamente mais tarde.\n\n"
-                "_Deus te abençoe!_ 🙏",
-                parse_mode='Markdown'
+                "_Deus te abençoe!_ 🙏"
             )
         
     except Exception as e:
@@ -431,8 +424,7 @@ async def confirmar_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "*A Paz de Deus!*\n\n"
             "❌ *Erro interno.*\n\n"
             "Tente novamente.\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
+            "_Deus te abençoe!_ 🙏"
         )
     
     # Limpar contexto
@@ -442,7 +434,7 @@ async def confirmar_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 async def cancelar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Cancela cadastro - SIMPLIFICADO"""
+    """Cancela cadastro - VERSÃO CORRIGIDA"""
     # Limpar contexto
     if 'cadastro_temp' in context.user_data:
         del context.user_data['cadastro_temp']
@@ -452,16 +444,14 @@ async def cancelar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "*A Santa Paz de Deus!*\n\n"
             "❌ *Cadastro cancelado!*\n\n"
             "Use /cadastrar para tentar novamente.\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
+            "_Deus te abençoe!_ 🙏"
         )
     else:
         await update.message.reply_text(
             "*A Santa Paz de Deus!*\n\n"
             "❌ *Cadastro cancelado!*\n\n"
             "Use /cadastrar para tentar novamente.\n\n"
-            "_Deus te abençoe!_ 🙏",
-            parse_mode='Markdown'
+            "_Deus te abençoe!_ 🙏"
         )
     
     return ConversationHandler.END
@@ -506,24 +496,4 @@ def registrar_handlers_cadastro(application):
     )
     
     application.add_handler(cadastro_handler)
-
- # TESTE EMERGENCIAL - ADICIONAR NO FINAL DO ARQUIVO
-async def teste_callback_simples(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Teste simples para verificar se callbacks funcionam"""
-    query = update.callback_query
-    await query.answer()
-    
-    await query.edit_message_text(
-        f"🔥 CALLBACK FUNCIONA! Dados: {query.data}",
-        parse_mode='Markdown'
-    )
-
-def registrar_teste_emergencial(application):
-    """Registra teste com prioridade máxima"""
-    application.add_handler(
-        CallbackQueryHandler(teste_callback_simples),
-        group=-2  # Prioridade alta
-    )
-    print("🔥 TESTE EMERGENCIAL REGISTRADO")   
-    
-    logger.info("✅ Handlers cadastro SIMPLIFICADOS registrados")
+    logger.info("✅ Handlers cadastro CORRIGIDOS registrados")
