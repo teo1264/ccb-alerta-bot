@@ -123,15 +123,11 @@ async def cadastro_comando(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return await iniciar_cadastro_etapas(update, context)
 
 async def mostrar_menu_igrejas(update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Mostra o menu de seleção de igrejas paginado
-    CORREÇÃO DEFINITIVA: Solução à prova de regressão para navegação
-    """
+    """Mostra o menu de seleção de igrejas paginado - CORRIGIDO"""
     # Agrupar igrejas em páginas
     igrejas_paginadas = agrupar_igrejas()
     pagina_atual = context.user_data['cadastro_temp'].get('pagina_igreja', 0)
     
-    # Verificar limites da página
     if pagina_atual >= len(igrejas_paginadas):
         pagina_atual = 0
     elif pagina_atual < 0:
@@ -142,10 +138,7 @@ async def mostrar_menu_igrejas(update, context: ContextTypes.DEFAULT_TYPE):
     # Preparar botões para a página atual
     keyboard = []
     for igreja in igrejas_paginadas[pagina_atual]:
-        # Criar callback data para este botão
         callback_data = f"igreja_{igreja['codigo']}"
-        
-        # Log para depuração
         logger.info(f"Criando botão com callback_data: {callback_data}")
         
         keyboard.append([InlineKeyboardButton(
@@ -160,12 +153,9 @@ async def mostrar_menu_igrejas(update, context: ContextTypes.DEFAULT_TYPE):
         nav_buttons.append(InlineKeyboardButton("Próxima ➡️", callback_data="igreja_proxima"))
     keyboard.append(nav_buttons)
     
-    # Botão para cancelar
     keyboard.append([InlineKeyboardButton("❌ Cancelar", callback_data="cancelar_cadastro")])
-    
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    # Criar ou editar mensagem dependendo do contexto
     texto_mensagem = (
         " *A Santa Paz de Deus!*\n\n"
         "Vamos iniciar o cadastro da Casa de Oração.\n\n"
@@ -173,54 +163,27 @@ async def mostrar_menu_igrejas(update, context: ContextTypes.DEFAULT_TYPE):
         f"📄 *Página {pagina_atual + 1}/{len(igrejas_paginadas)}*"
     )
     
-    # CORREÇÃO DEFINITIVA: Normalizar tipo de objeto primeiro
-    # Determinar se é primeira exibição (Update) ou navegação (CallbackQuery)
-    is_callback_update = False
-    message_func = None
-    
+    # CORREÇÃO: Detecção robusta do tipo
     try:
-        # Tentar identificar se é CallbackQuery
-        if hasattr(update, 'edit_message_text'):
-            is_callback_update = True
-            message_func = update.edit_message_text
-            logger.info("🔄 Navegação detectada - usando edit_message_text")
-        # Tentar identificar se é Update normal
+        if hasattr(update, 'edit_message_text') and callable(update.edit_message_text):
+            logger.info("🔄 Navegação igrejas - usando edit_message_text")
+            await update.edit_message_text(texto_mensagem, reply_markup=reply_markup, parse_mode='Markdown')
         elif hasattr(update, 'message') and update.message:
-            is_callback_update = False  
-            message_func = update.message.reply_text
-            logger.info("📱 Nova mensagem detectada - usando reply_text")
-        # Fallback: tentar como CallbackQuery por padrão
+            logger.info("📱 Nova mensagem igrejas - usando reply_text")
+            await update.message.reply_text(texto_mensagem, reply_markup=reply_markup, parse_mode='Markdown')
         else:
-            is_callback_update = True
-            message_func = update.edit_message_text
-            logger.warning("⚠️ Tipo não identificado - usando edit_message_text como fallback")
-            
-    except Exception as e:
-        logger.error(f"❌ Erro ao determinar tipo de update: {e}")
-        # Fallback final - tentar como mensagem normal
-        is_callback_update = False
-        message_func = update.message.reply_text
-    
-    # Enviar mensagem usando a função determinada
-    try:
-        await message_func(
-            texto_mensagem,
-            reply_markup=reply_markup,
-            parse_mode='Markdown'
-        )
+            logger.warning("⚠️ Fallback igrejas - edit_message_text")
+            await update.edit_message_text(texto_mensagem, reply_markup=reply_markup, parse_mode='Markdown')
+        
         logger.info("✅ Menu de igrejas exibido com sucesso")
         
     except Exception as e:
-        logger.error(f"❌ Erro ao enviar menu de igrejas: {e}")
-        # Fallback final dos fallbacks
+        logger.error(f"❌ Erro menu igrejas: {e}")
         try:
-            if hasattr(update, 'message') and update.message:
-                await update.message.reply_text(
-                    "❌ Erro interno. Use /cadastrar para reiniciar.",
-                    parse_mode='Markdown'
-                )
+            if hasattr(update, 'message'):
+                await update.message.reply_text("❌ Erro interno. Use /cadastrar para reiniciar.")
         except:
-            logger.error("❌ Fallback final também falhou")
+            logger.error("❌ Fallback final igrejas falhou")
             
 async def processar_selecao_igreja(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Processa a seleção ou navegação no menu de igrejas - VERSÃO CORRIGIDA COM DEBUG"""
@@ -303,15 +266,11 @@ async def receber_nome(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return SELECIONAR_FUNCAO
 
 async def mostrar_menu_funcoes(update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Mostra o menu de seleção de funções - CORREÇÃO DEFINITIVA
-    Solução à prova de regressão para navegação
-    """
+    """Mostra o menu de seleção de funções - CORRIGIDO"""
     # Agrupar funções em páginas
     funcoes_paginadas = agrupar_funcoes()
     pagina_atual = context.user_data['cadastro_temp'].get('pagina_funcao', 0)
     
-    # Verificar limites da página
     if pagina_atual >= len(funcoes_paginadas):
         pagina_atual = 0
     elif pagina_atual < 0:
@@ -325,10 +284,7 @@ async def mostrar_menu_funcoes(update, context: ContextTypes.DEFAULT_TYPE):
         callback_data = f"funcao_{funcao}"
         logger.info(f"Criando botão de função com callback_data: {callback_data}")
         
-        keyboard.append([InlineKeyboardButton(
-            funcao,
-            callback_data=callback_data
-        )])
+        keyboard.append([InlineKeyboardButton(funcao, callback_data=callback_data)])
     
     # Adicionar botões de navegação
     nav_buttons = []
@@ -337,15 +293,10 @@ async def mostrar_menu_funcoes(update, context: ContextTypes.DEFAULT_TYPE):
         nav_buttons.append(InlineKeyboardButton("Próxima ➡️", callback_data="funcao_proxima"))
     keyboard.append(nav_buttons)
     
-    # APENAS botão "🔄 Outra Função" (sem "Outro")
     keyboard.append([InlineKeyboardButton("🔄 Outra Função", callback_data="funcao_outra")])
-    
-    # Botão para cancelar
     keyboard.append([InlineKeyboardButton("❌ Cancelar", callback_data="cancelar_cadastro")])
-    
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    # Criar ou editar mensagem dependendo do contexto
     texto_mensagem = (
         " *A Paz de Deus!*\n\n"
         f"✅ Nome registrado: *{context.user_data['cadastro_temp']['nome']}*\n\n"
@@ -353,54 +304,27 @@ async def mostrar_menu_funcoes(update, context: ContextTypes.DEFAULT_TYPE):
         f"📄 *Página {pagina_atual + 1}/{len(funcoes_paginadas)}*"
     )
     
-    # CORREÇÃO DEFINITIVA: Normalizar tipo de objeto primeiro
-    # Determinar se é primeira exibição (Update) ou navegação (CallbackQuery)
-    is_callback_update = False
-    message_func = None
-    
+    # CORREÇÃO: Detecção robusta do tipo
     try:
-        # Tentar identificar se é CallbackQuery
-        if hasattr(update, 'edit_message_text'):
-            is_callback_update = True
-            message_func = update.edit_message_text
-            logger.info("🔄 Navegação de funções detectada - usando edit_message_text")
-        # Tentar identificar se é Update normal
+        if hasattr(update, 'edit_message_text') and callable(update.edit_message_text):
+            logger.info("🔄 Navegação funções - usando edit_message_text")
+            await update.edit_message_text(texto_mensagem, reply_markup=reply_markup, parse_mode='Markdown')
         elif hasattr(update, 'message') and update.message:
-            is_callback_update = False  
-            message_func = update.message.reply_text
-            logger.info("📱 Nova mensagem de funções detectada - usando reply_text")
-        # Fallback: tentar como CallbackQuery por padrão
+            logger.info("📱 Nova mensagem funções - usando reply_text")
+            await update.message.reply_text(texto_mensagem, reply_markup=reply_markup, parse_mode='Markdown')
         else:
-            is_callback_update = True
-            message_func = update.edit_message_text
-            logger.warning("⚠️ Tipo de função não identificado - usando edit_message_text como fallback")
-            
-    except Exception as e:
-        logger.error(f"❌ Erro ao determinar tipo de update em funções: {e}")
-        # Fallback final - tentar como mensagem normal
-        is_callback_update = False
-        message_func = update.message.reply_text
-    
-    # Enviar mensagem usando a função determinada
-    try:
-        await message_func(
-            texto_mensagem,
-            reply_markup=reply_markup,
-            parse_mode='Markdown'
-        )
+            logger.warning("⚠️ Fallback funções - edit_message_text")
+            await update.edit_message_text(texto_mensagem, reply_markup=reply_markup, parse_mode='Markdown')
+        
         logger.info("✅ Menu de funções exibido com sucesso")
         
     except Exception as e:
-        logger.error(f"❌ Erro ao enviar menu de funções: {e}")
-        # Fallback final dos fallbacks
+        logger.error(f"❌ Erro menu funções: {e}")
         try:
-            if hasattr(update, 'message') and update.message:
-                await update.message.reply_text(
-                    "❌ Erro interno. Use /cadastrar para reiniciar.",
-                    parse_mode='Markdown'
-                )
+            if hasattr(update, 'message'):
+                await update.message.reply_text("❌ Erro interno. Use /cadastrar para reiniciar.")
         except:
-            logger.error("❌ Fallback final de funções também falhou")
+            logger.error("❌ Fallback final funções falhou")
             
 async def processar_selecao_funcao(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
