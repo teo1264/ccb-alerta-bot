@@ -1,151 +1,132 @@
-# 🤖 CCB Alerta Bot - Sistema de Cadastro e Alertas Automáticos
+# 📱 CCB Alerta Bot - Guia do Usuário
 
-Sistema de cadastro via Telegram para **responsáveis das Casas de Oração da CCB Região Mauá**, com integração futura ao **Sistema BRK** para envio automático de alertas de consumo de água, energia e relatórios fotovoltaicos.
+## 🎯 **O QUE É O CCB ALERTA BOT?**
 
-## 🎯 **MISSÃO DO PROJETO**
+Sistema automatizado que **cadastra responsáveis das Casas de Oração da CCB Região Mauá** para recebimento de **alertas automáticos** sobre:
 
-**Cadastrar todos os responsáveis das Casas de Oração** para recebimento automatizado de:
-- 💧 **Alertas de consumo excessivo de água (BRK)**
-- ⚡ **Alertas de consumo fora do padrão de energia (ENEL)**  
-- ☀️ **Relatórios mensais de compensação fotovoltaica**
-- 📊 **Notificações administrativas e operacionais**
+- 💧 **Consumo excessivo de água** (integração Sistema BRK)
+- ⚡ **Consumo anormal de energia** (ENEL)
+- ☀️ **Relatórios fotovoltaicos** mensais
+- 📊 **Comunicados administrativos**
 
-## 🚀 **STATUS ATUAL (JULHO 2025)**
+---
 
-### ✅ **FASE 1: CADASTRO - CONCLUÍDA E OPERACIONAL**
-- 🤖 **Bot Telegram funcionando** - cadastro passo a passo
-- 📱 **Interface otimizada** - resposta rápida por qualquer palavra
-- 🗃️ **Database SQLite robusto** - armazenamento OneDrive + local
-- 👥 **Cadastro de responsáveis** - código, nome, função, ID Telegram
-- 🔒 **Conformidade LGPD** - termos de aceite e privacidade
-- 🛡️ **Sistema corrigido** - navegação e cancelamento funcionando perfeitamente
+## 🤖 **COMO USAR O BOT**
 
-### 🔄 **FASE 2: INTEGRAÇÃO BRK - EM DESENVOLVIMENTO**
-- 📊 **Integração com Sistema BRK** - base de dados compartilhada
-- 🚨 **Alertas automáticos** - baseados no cadastro do bot
-- 📈 **Envio inteligente** - por código de casa e função do responsável
-- ⏰ **Notificações programadas** - relatórios e alertas periódicos
+### **1️⃣ PRIMEIRO ACESSO**
 
-## 🏗️ **ARQUITETURA DO SISTEMA**
+1. **Abra o Telegram** no seu celular
+2. **Procure por**: `@CCBAlertaBot` (nome do bot)
+3. **Clique em "Iniciar"** ou digite qualquer mensagem
+4. **Aceite os termos LGPD** (proteção de dados)
 
+### **2️⃣ MENU PRINCIPAL**
+
+Após aceitar os termos, você verá o menu com botões:
+
+- 📝 **CADASTRAR RESPONSÁVEL** - Principal função
+- ℹ️ **Ajuda** - Lista de comandos
+- 🆔 **Meu ID** - Mostra seu ID do Telegram
+
+---
+
+## 📝 **PROCESSO DE CADASTRO PASSO A PASSO**
+
+### **ETAPA 1: SELECIONAR CASA DE ORAÇÃO**
+- Lista com todas as 38 Casas da Região Mauá
+- Navegue com botões **⬅️ Anterior** / **Próxima ➡️**
+- Clique na sua Casa de Oração (ex: BR21-0270 - CENTRO)
+
+### **ETAPA 2: INFORMAR SEU NOME**
+- Digite seu nome completo
+- Mínimo 3 caracteres
+- Exemplo: "João da Silva"
+
+### **ETAPA 3: SELECIONAR FUNÇÃO**
+Escolha sua função no menu:
+- 🤝 **Cooperador**
+- ⛪ **Diácono**
+- 👴 **Ancião**
+- 📝 **Auxiliar da Escrita**
+- 🔧 **Encarregado da Manutenção**
+
+*Ou use* **🔄 Outra Função** *para digitar uma função personalizada*
+
+### **ETAPA 4: CONFIRMAÇÃO**
+- Revise seus dados
+- Clique em **✅ Confirmar** para finalizar
+- Ou **❌ Cancelar** para recomeçar
+
+### **✅ CADASTRO CONCLUÍDO!**
+Mensagem de sucesso confirma que você receberá os alertas automáticos.
+
+---
+
+## 💬 **COMANDOS DISPONÍVEIS**
+
+### **👤 PARA TODOS OS USUÁRIOS:**
 ```
-🤖 CCB Alerta Bot (ESTRUTURA COMPLETA - JULHO 2025)
-├── 🔐 auth/ - Autenticação Microsoft (OneDrive)
-│   ├── __init__.py
-│   └── microsoft_auth.py (Token management + refresh automático)
-├── 🎮 handlers/ - Lógica do Bot Telegram
-│   ├── __init__.py
-│   ├── admin.py (Comandos administrativos + exportação)
-│   ├── cadastro.py (Cadastro passo a passo CORRIGIDO)
-│   ├── commands.py (Comandos básicos + boas-vindas)
-│   ├── data.py (Igrejas + funções + validações inteligentes)
-│   ├── error.py (Tratamento de erros global)
-│   ├── lgpd.py (Conformidade LGPD + remoção dados)
-│   └── mensagens.py (Processamento mensagens + auto-cadastro)
-├── 🗄️ utils/ - Utilitários e Database
-│   ├── __init__.py
-│   └── database/ - Sistema de Database
-│       ├── __init__.py
-│       ├── database.py (SQLite OneDrive + cache local)
-│       └── onedrive_manager.py (Sincronização OneDrive)
-├── 🌐 bot.py (Aplicação principal Telegram)
-├── ⚙️ config.py (Configurações + detecção ambiente)
-├── 📋 requirements.txt (Dependências)
-├── 🚀 setup.py (Script instalação assistida)
-└── 📝 README.md (Esta documentação)
-
-TOTAL: 15+ arquivos principais
-STATUS: ✅ FASE 1 CONCLUÍDA - FASE 2 EM DESENVOLVIMENTO
-```
-
-## 🎮 **FUNCIONALIDADES ATIVAS**
-
-### 📱 **Bot Telegram Otimizado**
-- ✅ **Cadastro passo a passo** - menu intuitivo com navegação
-- ✅ **Resposta instantânea** - qualquer palavra inicia cadastro
-- ✅ **Navegação fluida** - botões próximo/anterior funcionando
-- ✅ **Cancelamento correto** - botão cancelar sempre funciona
-- ✅ **Validação inteligente** - detecção de funções similares
-- ✅ **Interface LGPD** - termos de aceite obrigatórios
-
-### 🏪 **Base de Dados Completa**
-- 📍 **38 Casas de Oração** - região Mauá com códigos BR21
-- 👥 **5 Funções principais** - Cooperador, Diácono, Ancião, etc.
-- 🔍 **Detecção automática** - funções similares direcionam ao menu
-- 📊 **Validações robustas** - prevenção duplicatas e erros
-- 🗃️ **SQLite thread-safe** - armazenamento local + OneDrive
-
-### 🔒 **Conformidade e Segurança**
-- ✅ **LGPD compliance** - política de privacidade completa
-- 🛡️ **Dados protegidos** - apenas nome, função e ID Telegram
-- 🗑️ **Remoção sob demanda** - comando `/remover` funcional
-- 📋 **Transparência total** - usuário sabe exatamente o que é coletado
-- 🔐 **Criptografia OneDrive** - dados sensíveis protegidos
-
-### 👨‍💼 **Funcionalidades Administrativas**
-- 📊 **Exportação planilhas** - Excel completo com todos cadastros
-- 📋 **Listagem filtrada** - por igreja, função ou ID
-- ✏️ **Edição cadastros** - busca, edição e exclusão segura
-- 🧹 **Limpeza controlada** - remoção em lote com backup
-- 👥 **Gestão admins** - adicionar novos administradores
-
-## 🔗 **INTEGRAÇÃO COM SISTEMA BRK**
-
-### 🎯 **Objetivo da Integração**
-O cadastro do CCB Alerta Bot serve como **base para envio de alertas** do Sistema BRK:
-
-```
-📊 Fluxo de Alertas Integrado:
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Sistema BRK   │───▶│  CCB Alerta Bot │───▶│   Responsáveis  │
-│                 │    │                 │    │                 │
-│ • Processa PDFs │    │ • Consulta base │    │ • Recebe alertas│
-│ • Detecta alto  │    │ • Filtra por    │    │ • Por código    │
-│   consumo       │    │   código casa   │    │   da igreja     │
-│ • Gera alertas  │    │ • Envia Telegram│    │ • Telegram ID   │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+/start - Mensagem de boas-vindas + menu
+/cadastrar - Iniciar cadastro passo a passo
+/meu_id - Mostrar seu ID do Telegram
+/ajuda - Lista todos os comandos
+/remover - Excluir seus dados (LGPD)
+/privacidade - Política de privacidade
 ```
 
-### 📋 **Estrutura de Dados Compartilhada**
-```sql
--- Tabela responsaveis (CCB Alerta Bot)
-CREATE TABLE responsaveis (
-    id INTEGER PRIMARY KEY,
-    codigo_casa TEXT,        -- BR21-0270, BR21-0271, etc.
-    nome TEXT,               -- Nome do responsável
-    funcao TEXT,             -- Cooperador, Diácono, etc.
-    user_id INTEGER,         -- ID Telegram para envio
-    username TEXT,           -- @username Telegram
-    ultima_atualizacao TEXT  -- Timestamp última modificação
-);
-
--- Utilização pelo Sistema BRK:
--- 1. BRK detecta consumo alto na casa BR21-0270
--- 2. Consulta responsaveis WHERE codigo_casa = 'BR21-0270'
--- 3. Envia alerta via Telegram para user_id encontrados
--- 4. Personaliza mensagem com nome e função do responsável
+### **👨‍💼 PARA ADMINISTRADORES:**
+```
+/exportar - Gerar planilha com todos cadastros
+/listar - Listar cadastros (com filtros)
+/editar_buscar - Buscar cadastros para edição
+/admin_add - Adicionar novo administrador
 ```
 
-### 🚨 **Tipos de Alertas Programados**
-1. **💧 Consumo Água Elevado**: Quando BRK detecta consumo > 20% da média
-2. **⚡ Anomalia Energia**: Padrões fora do normal detectados
-3. **📅 Relatórios Mensais**: Resumo consumo + compensação fotovoltaica
-4. **⚠️ Duplicatas/Erros**: Problemas nas faturas que requerem atenção
-5. **💰 Resumos Financeiros**: Totais mensais por conta bancária
+---
 
-### 🎯 **Benefícios da Integração**
-- ✅ **Alertas direcionados** - cada responsável recebe apenas sua igreja
-- ✅ **Personalização** - mensagens com nome e função específica
-- ✅ **Cobertura total** - todas as 38 casas monitoradas
-- ✅ **Tempo real** - alertas enviados assim que BRK detecta problema
-- ✅ **Histórico completo** - rastreabilidade de todas comunicações
+## 🚨 **TIPOS DE ALERTAS QUE VOCÊ RECEBERÁ**
 
-## 📊 **CASAS DE ORAÇÃO CADASTRADAS**
+### **🔗 INTEGRAÇÃO COM SISTEMA BRK**
+O bot está **integrado ao Sistema BRK** (controle financeiro da CCB), que monitora automaticamente todas as contas de água e energia.
 
-### 🏪 **38 Igrejas Ativas - Região Mauá**
+### **📱 ALERTAS AUTOMÁTICOS:**
+
+#### **💧 ÁGUA (Sistema BRK)**
+- **Normal**: "Consumo dentro do esperado - 18m³"
+- **Alto**: "⚠️ Consumo elevado detectado - 35m³ (+94%)"
+- **Crítico**: "🚨 Possível vazamento - 65m³ (+260%)"
+- **Emergência**: "🚨🚨 URGENTE: Consumo anormal - 120m³ (+550%)"
+
+#### **⚡ ENERGIA (ENEL)**
+- Padrões de consumo fora do normal
+- Picos de demanda não usuais
+- Relatórios comparativos mensais
+
+#### **☀️ FOTOVOLTAICO**
+- Relatórios mensais de compensação
+- Eficiência da geração solar
+- Economia obtida
+
+#### **📊 ADMINISTRATIVOS**
+- Comunicados da administração
+- Informações sobre manutenção
+- Instruções preventivas
+
+---
+
+## 🎯 **QUEM DEVE SE CADASTRAR?**
+
+### **✅ RESPONSÁVEIS DIRETOS:**
+- **Cooperadores** - Responsabilidade geral da Casa
+- **Encarregados da Manutenção** - Cuidados técnicos
+- **Auxiliares da Escrita** - Controle administrativo
+- **Diáconos e Anciãos** - Supervisão geral
+
+### **📍 COBERTURA COMPLETA:**
+**38 Casas de Oração da Região Mauá:**
 ```
 BR21-0270 - CENTRO
-BR21-0271 - JARDIM PRIMAVERA  
+BR21-0271 - JARDIM PRIMAVERA
 BR21-0272 - JARDIM MIRANDA D'AVIZ
 BR21-0273 - JARDIM SANTISTA
 BR21-0274 - JARDIM SÔNIA MARIA
@@ -182,245 +163,159 @@ BR21-1082 - JARDIM ITAPARK NOVO
 BR21-1108 - RECANTO VITAL BRASIL
 ```
 
-### 👥 **Funções de Responsáveis**
+---
+
+## 🔒 **PROTEÇÃO DOS SEUS DADOS (LGPD)**
+
+### **📋 O QUE COLETAMOS:**
+- Nome completo
+- Função na Igreja
+- ID do Telegram
+- Username do Telegram (se disponível)
+
+### **🎯 PARA QUE USAMOS:**
+- Envio de alertas sobre sua Casa de Oração
+- Comunicação administrativa específica
+- Relacionamento com Sistema BRK (automação)
+
+### **🛡️ COMO PROTEGEMOS:**
+- Dados criptografados no OneDrive
+- Acesso restrito a administradores
+- Conformidade total com LGPD
+- Não compartilhamos com terceiros
+
+### **✅ SEUS DIREITOS:**
+- **Acessar**: Ver seus dados armazenados
+- **Remover**: Comando `/remover` exclui tudo
+- **Atualizar**: Refazer cadastro atualiza dados
+- **Revogar**: Sair do sistema a qualquer momento
+
+---
+
+## 💡 **EXEMPLO PRÁTICO DE USO**
+
+### **📋 CENÁRIO REAL:**
 ```
-🤝 Cooperador
-⛪ Diácono  
-👴 Ancião
-📝 Auxiliar da Escrita
-🔧 Encarregado da Manutenção
-```
-
-## ⚙️ **CONFIGURAÇÃO E DEPLOY**
-
-### 🔧 **Variáveis de Ambiente**
-```bash
-# OBRIGATÓRIAS
-TELEGRAM_BOT_TOKEN=7773179413:AAHqJp...  # Token do @BotFather
-ADMIN_IDS=123456789,987654321           # IDs administradores (separados por vírgula)
-
-# ONEDRIVE (RECOMENDADAS - para sincronização)
-MICROSOFT_CLIENT_ID=abc123...           # Client ID aplicação Microsoft
-MICROSOFT_TENANT_ID=consumers          # Tenant (padrão: consumers)
-ONEDRIVE_DATABASE_ENABLED=true         # Habilitar backup OneDrive
-
-# DEPLOYMENT (OPCIONAIS)
-FORCE_POLLING=false                     # Forçar polling vs webhook
-WEBHOOK_URL=https://....               # URL webhook manual (se aplicável)
-```
-
-### 🚀 **Deploy Render (3 Minutos)**
-1. **Fork/Clone** este repositório
-2. **Render.com** → New Web Service → Conectar repo
-3. **Build Command**: `pip install -r requirements.txt`
-4. **Start Command**: `python bot.py`
-5. **Environment Variables** (tabela acima)
-6. **Deploy automático** - bot ativo em 3 minutos!
-
-### 🔒 **OneDrive Backup (Opcional)**
-```bash
-# Para habilitar backup automático OneDrive:
-ONEDRIVE_DATABASE_ENABLED=true
-MICROSOFT_CLIENT_ID=your_client_id
-
-# Sistema criará automaticamente:
-# /CCB-Alerta/database.db (backup automático)
-# /CCB-Alerta/logs/ (logs do sistema)
+📧 Sistema BRK detecta consumo alto na JARDIM BRASÍLIA
+🔍 Consulta: Quem são os responsáveis por BR21-0574?
+👥 Encontra: João (Cooperador), Maria (Aux. Escrita)
+📱 Envia alertas personalizados via Telegram:
 ```
 
-## 💬 **COMANDOS DO BOT**
+**📱 MENSAGEM PARA JOÃO:**
+```
+🚨 ALERTA CONSUMO - JARDIM BRASÍLIA
 
-### 👤 **Usuários Gerais**
-```
-/start          - Mensagem boas-vindas + início cadastro
-/cadastrar      - Iniciar processo cadastro passo a passo
-/meu_id         - Mostrar seu ID Telegram
-/ajuda          - Lista todos comandos disponíveis  
-/remover        - Solicitar exclusão dados (LGPD)
-/privacidade    - Política privacidade completa
-```
+A Paz de Deus, João!
 
-### 👨‍💼 **Administradores**
-```
-/exportar       - Gerar planilha Excel todos cadastros
-/listar         - Listar todos cadastros (com filtros)
-/editar_buscar  - Buscar cadastros para edição
-/editar         - Editar cadastro específico
-/excluir        - Excluir cadastro específico
-/excluir_id     - Excluir pelo número da listagem
-/limpar         - Remover todos cadastros (com confirmação)
-/admin_add      - Adicionar novo administrador
+Detectamos consumo elevado de água:
+📍 Casa: BR21-0574 - JARDIM BRASÍLIA  
+💧 Consumo: 45m³ (Normal: 18m³)
+📈 Aumento: +150% acima da média
+📅 Período: Julho/2025
+
+⚠️ Verificar possível vazamento.
+
+Deus te abençoe! 🙏
 ```
 
-## 🔍 **LOGS E MONITORAMENTO**
+### **⚡ RESULTADO:**
+- **Responsável notificado** imediatamente
+- **Ação preventiva** pode evitar prejuízos
+- **Sistema BRK protege** contra débitos suspeitos
+- **Histórico completo** para auditoria
 
-### 📊 **Sistema de Logs Automático**
-```bash
-# Estrutura logs automática
-logs/
-├── bot_20250703.log     # Logs diários do bot
-├── error_*.log          # Logs de erros específicos
-└── backup_*.sql         # Backups automáticos database
+---
 
-# Conteúdo logs (exemplo real):
-[18:20:51] Iniciando cadastro para usuário 5876346562
-[18:20:51] Igreja selecionada: BR21-0270 - CENTRO
-[18:20:52] Nome recebido: João da Silva
-[18:20:53] Função selecionada: Cooperador
-[18:20:54] ✅ Cadastro recebido com sucesso
-[18:20:54] 📊 Total cadastros: 127 responsáveis
-```
+## 🛠️ **PROBLEMAS COMUNS E SOLUÇÕES**
 
-### 📈 **Métricas de Uso**
-- **👥 Cadastros ativos**: Tracking automático
-- **📱 Comandos executados**: Log de todas interações
-- **⚡ Performance**: Tempo resposta por comando
-- **🔄 Taxa conversão**: Usuários que completam cadastro
-- **📊 Distribuição**: Cadastros por igreja e função
+### **❓ "Não consigo me cadastrar"**
+- Certifique-se de aceitar os termos LGPD primeiro
+- Use o botão **📝 CADASTRAR RESPONSÁVEL**
+- Se der erro, digite `/cadastrar`
 
-## 🛡️ **CONTINGÊNCIA E ROBUSTEZ**
+### **❓ "Minha função não está na lista"**
+- Use **🔄 Outra Função**
+- Digite sua função específica
+- Sistema detecta funções similares automaticamente
 
-### 🔄 **OneDrive Indisponível**
-- ✅ Sistema funciona **100% local** como fallback
-- ✅ Backup automático quando OneDrive volta
-- ✅ **Zero perda de dados** garantida
-- ✅ Logs indicam quando sincronização pendente
+### **❓ "Quero alterar meus dados"**
+- Faça um novo cadastro (substitui o anterior)
+- Ou peça ajuda a um administrador
 
-### 📱 **Telegram API Instável**
-- ✅ **Retry automático** em falhas temporárias
-- ✅ **Queue de mensagens** para garantir entrega
-- ✅ **Graceful degradation** mantém funcionalidades essenciais
-- ✅ **Logs detalhados** de problemas de conectividade
+### **❓ "Não estou recebendo alertas"**
+- Verifique se completou o cadastro
+- Confirme que não bloqueou o bot
+- Entre em contato com administração
 
-### 🗃️ **Database Corrompido**
-- ✅ **Backup automático** antes de modificações críticas
-- ✅ **Validação integridade** dados ao inicializar
-- ✅ **Restore automático** da última versão válida
-- ✅ **Reconstrução completa** se necessário
+### **❓ "Quero sair do sistema"**
+- Use o comando `/remover`
+- Confirme a exclusão dos dados
+- Processo irreversível (LGPD)
 
-### 🔧 **Self-Healing**
-- ✅ **Criação automática** estrutura database se não existir
-- ✅ **Migração schema** automática para novas versões
-- ✅ **Limpeza automática** logs antigos (>30 dias)
-- ✅ **Detecção problemas** configuração + correção automática
+---
 
-## 🚨 **EXEMPLO: FLUXO COMPLETO DE ALERTA**
+## 📞 **SUPORTE E CONTATO**
 
-### 🔄 **Cenário Real de Uso Futuro**
-```
-📊 1. SISTEMA BRK DETECTA PROBLEMA
-   Data: 15/07/2025 08:30
-   Casa: BR21-0574 - JARDIM BRASÍLIA  
-   Problema: Consumo água 150% acima da média (45m³ vs 18m³)
-   Status: ⚠️ ALERTA CRÍTICO
+### **🤖 SUPORTE TÉCNICO:**
+- **Desenvolvedor**: Sidney Gubitoso - Auxiliar Tesouraria
+- **Sistema**: Integrado ao BRK (proteção financeira)
+- **Disponibilidade**: 24/7 automático
 
-📋 2. CONSULTA BASE CCB ALERTA BOT
-   SQL: SELECT * FROM responsaveis WHERE codigo_casa = 'BR21-0574'
-   Resultado:
-   - João Silva (Cooperador) - Telegram ID: 123456789
-   - Maria Santos (Auxiliar Escrita) - Telegram ID: 987654321
+### **👨‍💼 ADMINISTRADORES:**
+Lista atual de administradores configurados via variável `ADMIN_IDS`
 
-📱 3. ENVIO ALERTAS PERSONALIZADOS
-   Para João Silva (Cooperador):
-   "🚨 ALERTA CONSUMO - JARDIM BRASÍLIA
-   
-   A Paz de Deus, João!
-   
-   Detectamos consumo elevado de água na nossa Casa de Oração:
-   
-   📍 Casa: BR21-0574 - JARDIM BRASÍLIA
-   💧 Consumo: 45m³ (Média: 18m³)
-   📈 Variação: +150% acima do normal
-   📅 Competência: Julho/2025
-   
-   ⚠️ Por favor, verificar possível vazamento ou uso inadequado.
-   
-   Qualquer dúvida, entre em contato com a administração.
-   
-   _Deus te abençoe!_ 🙏"
+### **📋 REPORTAR PROBLEMAS:**
+1. Use `/ajuda` para verificar comandos
+2. Tente `/cadastrar` novamente  
+3. Entre em contato com administração local
+4. Reporte problemas técnicos ao desenvolvedor
 
-📊 4. CONFIRMAÇÃO E LOGS
-   ✅ João Silva: Mensagem entregue 08:31
-   ✅ Maria Santos: Mensagem entregue 08:31
-   📋 Log: Alerta BR21-0574 enviado para 2 responsáveis
-   📈 Métrica: 100% taxa entrega neste alerta
-```
+---
 
-## 📞 **SUPORTE E DESENVOLVIMENTO**
+## 🚀 **BENEFÍCIOS DO SISTEMA**
 
-### 👨‍💼 **Equipe de Desenvolvimento**
-**Sidney Gubitoso** - Auxiliar Tesouraria Administrativa Mauá
-- 🤖 **Desenvolvimento bot**: Lógica Telegram + interface
-- 🗃️ **Arquitetura database**: SQLite + OneDrive sync  
-- 🔗 **Integração BRK**: Preparação base dados alertas
-- 🛡️ **LGPD compliance**: Políticas privacidade + remoção
+### **✅ PARA OS RESPONSÁVEIS:**
+- **Alertas instantâneos** sobre suas Casas
+- **Prevenção de prejuízos** por vazamentos
+- **Comunicação direcionada** sem spam
+- **Histórico completo** de todos alertas
+- **Interface simples** via Telegram
 
-### 📅 **Cronograma Desenvolvimento**
+### **✅ PARA A ADMINISTRAÇÃO:**
+- **Monitoramento automático** 38 Casas
+- **Proteção financeira** contra consumos altos
+- **Base atualizada** de responsáveis
+- **Comunicação eficiente** e rastreável
+- **Integração total** com Sistema BRK
 
-#### ✅ **FASE 1: CADASTRO (CONCLUÍDA - JULHO 2025)**
-- ✅ Bot Telegram funcional
-- ✅ Cadastro passo a passo otimizado
-- ✅ Database SQLite + OneDrive
-- ✅ Interface administrativa completa
-- ✅ Conformidade LGPD implementada
-- ✅ Deploy produção + testes completos
-- ✅ **Correções críticas aplicadas** (navegação + cancelamento)
-
-#### 🔄 **FASE 2: INTEGRAÇÃO BRK (EM DESENVOLVIMENTO)**
-- 🟡 **Módulo alertas**: Integração com Sistema BRK
-- 🟡 **Personalização mensagens**: Por função e igreja
-- 🟡 **Scheduler alertas**: Envios programados
-- 🟡 **Dashboard monitoramento**: Métricas entrega
-- 🟡 **Testes integração**: Ambiente staging BRK
-
-#### 🔮 **FASE 3: EXPANSÃO (PLANEJADA)**
-- ⭕ **Alertas múltiplos**: Energia + água + fotovoltaico
-- ⭕ **Interface web**: Dashboard responsáveis
-- ⭕ **API externa**: Integração sistemas terceiros
-- ⭕ **App mobile**: Notificações push nativas
-
-### 📊 **Status Técnico Atual**
-- **🤖 Bot Telegram**: ✅ 100% funcional e otimizado
-- **🗃️ Database**: ✅ Robusto e sincronizado OneDrive
-- **👥 Cadastros**: ✅ Sistema completo 38 igrejas
-- **🔒 LGPD**: ✅ Compliance total implementada
-- **🔗 Preparação BRK**: ✅ Estrutura dados compatível
-- **📱 Performance**: ✅ Resposta instantânea validada
-- **🛡️ Robustez**: ✅ Contingências implementadas e testadas
-
-## 📈 **MÉTRICAS E VALIDAÇÃO**
-
-### 📊 **Estatísticas Sistema (Julho 2025)**
-- **🏪 Casas cobertas**: 38 igrejas região Mauá
-- **👥 Funções disponíveis**: 5 categorias principais
-- **⚡ Tempo resposta**: <1 segundo resposta média
-- **🔄 Taxa conversão**: 95%+ usuários completam cadastro
-- **📱 Comandos/dia**: Tracking automático implementado
-- **🔒 Conformidade**: 100% LGPD compliance
-- **☁️ Uptime**: 99.9% disponibilidade (meta Render)
-
-### ✅ **Validação Técnica Completa**
-- **📋 Código auditado**: Estrutura modular validada
-- **🧪 Testes funcionais**: Todos fluxos testados
-- **🔐 Segurança**: Dados protegidos + criptografia
-- **📊 Performance**: Otimizado para resposta rápida
-- **🔗 Compatibilidade**: Pronto para integração BRK
-- **🛡️ Robustez**: Contingências validadas em produção
-- **📱 Usabilidade**: Interface otimizada para usuários diversos
+### **✅ PARA A CCB:**
+- **Economia significativa** prevenindo vazamentos
+- **Gestão moderna** das Casas de Oração
+- **Conformidade LGPD** em dados pessoais
+- **Automação completa** reduz trabalho manual
+- **Transparência total** no processo
 
 ---
 
 ## 🎯 **CONCLUSÃO**
 
-O **CCB Alerta Bot** é um sistema **completo e robusto** para cadastro de responsáveis das Casas de Oração, com arquitetura preparada para **integração total com o Sistema BRK**.
+O **CCB Alerta Bot** é mais que um simples bot do Telegram - é um **sistema completo de proteção e comunicação** que:
 
-**🎯 OBJETIVO ALCANÇADO**: Criar base sólida de dados para **alertas automáticos direcionados** sobre consumo de água, energia e relatórios fotovoltaicos.
+🔗 **Se integra ao Sistema BRK** para monitoramento financeiro  
+📱 **Automatiza alertas direcionados** para cada responsável  
+🛡️ **Protege contra prejuízos** por vazamentos e consumos altos  
+📊 **Facilita a gestão** das 38 Casas de Oração  
+🙏 **Serve à obra de Deus** com tecnologia moderna e eficiente  
 
-**🚀 PRÓXIMOS PASSOS**: Implementar módulo de alertas no Sistema BRK utilizando a base de cadastros como fonte de destinatários, garantindo **comunicação eficiente e personalizada** para cada responsável.
+**Cadastre-se hoje e faça parte desta rede de proteção automática!**
 
 ---
 
-> **Desenvolvido por Sidney Gubitoso** - Auxiliar Tesouraria Administrativa Mauá  
-> **Versão Atual**: CCB Alerta Bot v2.0 - Sistema Completo + Correções Aplicadas  
-> **Deploy**: ⚡ 3 minutos | **Uptime**: 🌐 24/7 | **LGPD**: 🛡️ Compliant  
-> **Integração BRK**: 🔗 Em desenvolvimento | **Status**: ✅ Produção ativa
+> **📱 Para usar**: Procure `@CCBAlertaBot` no Telegram  
+> **🔧 Desenvolvido por**: Sidney Gubitoso - Auxiliar Tesouraria Administrativa Mauá  
+> **🔗 Integrado ao**: Sistema BRK (proteção financeira CCB)  
+> **🛡️ Conformidade**: LGPD - Lei Geral de Proteção de Dados  
+> **⚡ Status**: Ativo 24/7 - Deploy automático Render
+
+_Deus abençoe este trabalho em favor da Sua obra! 🙏_
