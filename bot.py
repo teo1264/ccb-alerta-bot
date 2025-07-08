@@ -2,12 +2,11 @@
 # -*- coding: utf-8 -*-
 
 """
-CCB Alerta Bot - VERSÃO SIMPLIFICADA E FUNCIONAL
+CCB Alerta Bot - VERSÃO CORRIGIDA
 """
 
 import logging
 import os
-from handlers.cadastro import registrar_teste_emergencial
 from datetime import datetime
 from telegram import Update
 from telegram.ext import Application
@@ -16,7 +15,7 @@ from config import (
     inicializar_sistema, verificar_diretorios
 )
 from handlers.commands import registrar_comandos_basicos
-from handlers.cadastro import registrar_handlers_cadastro
+from handlers.cadastro import registrar_handlers_cadastro, registrar_teste_emergencial
 from handlers.admin import registrar_handlers_admin
 from handlers.mensagens import registrar_handlers_mensagens
 from handlers.error import registrar_error_handler
@@ -42,11 +41,7 @@ def configurar_logs():
     logger.info("Sistema de logs configurado")
 
 def main():
-
-    # Na função main(), PRIMEIRO:
-    registrar_teste_emergencial(application)
-    print("🔥 TESTE ATIVO")
-    """Função principal - MODO SIMPLES"""
+    """Função principal - VERSÃO CORRIGIDA"""
     logger.info("=" * 50)
     logger.info("Inicializando o CCB Alerta Bot...")
     logger.info("=" * 50)
@@ -64,8 +59,11 @@ def main():
         # Criar a aplicação
         application = Application.builder().token(TOKEN).build()
         
-        # Registrar handlers
-        # No main(), após cada registrar_handlers:
+        # TESTE EMERGENCIAL - PRIORIDADE MÁXIMA
+        registrar_teste_emergencial(application)
+        logger.info("🔥 TESTE EMERGENCIAL ATIVO")
+        
+        # Registrar handlers na ordem correta
         registrar_comandos_basicos(application)
         logger.info("1️⃣ Comandos básicos registrados")
 
