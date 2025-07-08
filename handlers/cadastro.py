@@ -54,7 +54,7 @@ ESTADO_AGUARDANDO_FUNCAO = "aguardando_funcao"
 # SISTEMA DE CALLBACKS DIRETOS - INÍCIO DO CADASTRO
 # ================================================================================================
 
-async def iniciar_cadastro_comando(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def iniciar_cadastro_etapas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Comando /cadastrar - inicia processo"""
     user_id = update.effective_user.id
     
@@ -608,7 +608,7 @@ def registrar_handlers_cadastro(application):
     """Registra todos os handlers usando sistema de callbacks diretos"""
     
     # Comandos básicos
-    application.add_handler(CommandHandler("cadastrar", iniciar_cadastro_comando))
+    application.add_handler(CommandHandler("cadastrar", iniciar_cadastro_etapas))
     
     # LGPD
     application.add_handler(CallbackQueryHandler(
