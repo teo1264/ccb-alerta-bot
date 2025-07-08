@@ -61,10 +61,10 @@ def main():
         
         # Registrar handlers
         registrar_comandos_basicos(application)
-        registrar_handlers_cadastro(application)
         registrar_handlers_admin(application)
-        registrar_handlers_mensagens(application)
         registrar_handlers_lgpd(application)
+        registrar_handlers_cadastro(application)     # ← MOVER PARA PENÚLTIMO
+        registrar_handlers_mensagens(application)    # ← DEIXAR POR ÚLTIMO
         registrar_error_handler(application)
         
         # FORÇAR MODO WEBHOOK SIMPLES
