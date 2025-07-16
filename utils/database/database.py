@@ -1,7 +1,7 @@
 """
 Módulo de acesso ao banco de dados SQLite com integração OneDrive
 VERSÃO CORRIGIDA FINAL: Sincronização garantida sem conflitos com navegação
-NUNCA MAIS VAI PERDER DADOS
+NUNCA MAIS VAI PERDER DADOS + TODAS AS FUNÇÕES IMPLEMENTADAS
 """
 import sqlite3
 import os
@@ -319,136 +319,6 @@ def salvar_responsavel(codigo_casa, nome, funcao, user_id, username):
         logger.error(f"❌ Erro ao salvar responsável: {e}")
         return False, str(e)
 
-def remover_cadastros_por_user_id(user_id):
-    """Remove todos os cadastros de um usuário pelo ID - COM SYNC"""
-    try:
-        conn = get_connection()
-        try:
-            cursor = conn.cursor()
-            cursor.execute(
-                "DELETE FROM responsaveis WHERE user_id = ?",
-                (user_id,)
-            )
-            
-            removidos = cursor.rowcount
-            conn.commit()
-            
-            # 🔥 CORREÇÃO: Sincronizar após remoção
-            if removidos > 0:
-                _sincronizar_para_onedrive_critico()
-                logger.info(f"🔥 {removidos} CADASTROS REMOVIDOS E SINCRONIZADOS para usuário {user_id}")
-            
-            return removidos
-            
-        finally:
-            conn.close()
-            
-    except Exception as e:
-        logger.error(f"❌ Erro ao remover cadastros por user_id: {e}")
-        return 0
-
-def adicionar_admin(user_id, nome=None):
-    """Adiciona um novo administrador - COM SYNC"""
-    try:
-        if verificar_admin(user_id):
-            return False, "já é admin"
-        
-        fuso_horario = pytz.timezone('America/Sao_Paulo')
-        agora = datetime.now(fuso_horario).strftime("%d/%m/%Y %H:%M:%S")
-        
-        conn = get_connection()
-        try:
-            cursor = conn.cursor()
-            cursor.execute(
-                "INSERT INTO administradores (user_id, nome, data_adicao) VALUES (?, ?, ?)",
-                (user_id, nome, agora)
-            )
-            conn.commit()
-            
-            # 🔥 CORREÇÃO: Sincronizar após adicionar admin
-            _sincronizar_para_onedrive_critico()
-            logger.info(f"🔥 ADMINISTRADOR ADICIONADO E SINCRONIZADO: {user_id}")
-            
-            return True, "sucesso"
-            
-        finally:
-            conn.close()
-            
-    except Exception as e:
-        logger.error(f"❌ Erro ao adicionar administrador: {e}")
-        return False, str(e)
-
-def registrar_consentimento_lgpd(user_id, ip_address=None, detalhes=None):
-    """Registra o consentimento do usuário para LGPD - COM SYNC"""
-    try:
-        fuso_horario = pytz.timezone('America/Sao_Paulo')
-        agora = datetime.now(fuso_horario).strftime("%d/%m/%Y %H:%M:%S")
-        
-        conn = get_connection()
-        try:
-            cursor = conn.cursor()
-            
-            cursor.execute("SELECT user_id FROM consentimento_lgpd WHERE user_id = ?", (user_id,))
-            
-            if cursor.fetchone():
-                cursor.execute(
-                    "UPDATE consentimento_lgpd SET data_consentimento = ?, ip_address = ?, detalhes = ? WHERE user_id = ?",
-                    (agora, ip_address, detalhes, user_id)
-                )
-            else:
-                cursor.execute(
-                    "INSERT INTO consentimento_lgpd (user_id, data_consentimento, ip_address, detalhes) VALUES (?, ?, ?, ?)",
-                    (user_id, agora, ip_address, detalhes)
-                )
-                
-            conn.commit()
-            
-            # 🔥 CORREÇÃO: Sincronizar após registrar consentimento
-            _sincronizar_para_onedrive_critico()
-            logger.info(f"🔥 CONSENTIMENTO LGPD REGISTRADO E SINCRONIZADO: {user_id}")
-            
-            return True
-            
-        finally:
-            conn.close()
-            
-    except Exception as e:
-        logger.error(f"❌ Erro ao registrar consentimento LGPD: {e}")
-        return False
-
-def limpar_todos_responsaveis():
-    """Remove todos os responsáveis do banco de dados - COM SYNC"""
-    try:
-        conn = get_connection()
-        try:
-            cursor = conn.cursor()
-            
-            cursor.execute("SELECT COUNT(*) as total FROM responsaveis")
-            count = cursor.fetchone()['total']
-            
-            cursor.execute("DELETE FROM responsaveis")
-            conn.commit()
-            
-            logger.info(f"🔥 REMOVIDOS {count} RESPONSÁVEIS DO BANCO DE DADOS")
-            
-            # 🔥 CORREÇÃO: Sincronizar após limpeza
-            if count > 0:
-                _sincronizar_para_onedrive_critico()
-                logger.info("🔥 LIMPEZA SINCRONIZADA COM ONEDRIVE")
-            
-            return True
-            
-        finally:
-            conn.close()
-    
-    except Exception as e:
-        logger.error(f"❌ Erro ao limpar todos os responsáveis: {e}")
-        return False
-
-# ============================================
-# FUNÇÕES DE LEITURA (NÃO PRECISAM DE SYNC)
-# ============================================
-
 def verificar_cadastro_existente(codigo, nome, funcao=None):
     """Verifica se já existe um cadastro com o mesmo código e nome"""
     try:
@@ -480,6 +350,39 @@ def verificar_cadastro_existente(codigo, nome, funcao=None):
         logger.error(f"❌ Erro ao verificar cadastro existente: {e}")
         return False
 
+def verificar_cadastro_existente_detalhado(codigo, nome):
+    """
+    🔥 FUNÇÃO FALTANTE IMPLEMENTADA: Verifica se já existe um cadastro e retorna detalhes
+    """
+    try:
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+            
+            # Normalizar para comparação
+            codigo_norm = codigo.strip().upper()
+            nome_norm = nome.strip().upper()
+            
+            cursor.execute('''
+            SELECT * FROM responsaveis 
+            WHERE UPPER(TRIM(codigo_casa)) = ? 
+              AND UPPER(TRIM(nome)) = ?
+            ''', (codigo_norm, nome_norm))
+            
+            resultado = cursor.fetchone()
+            
+            if resultado:
+                return dict(resultado)
+            
+            return None
+            
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        logger.error(f"❌ Erro ao verificar cadastro existente detalhado: {e}")
+        return None
+
 def obter_cadastros_por_user_id(user_id):
     """Obtem todos os cadastros de um usuário pelo ID"""
     try:
@@ -503,6 +406,34 @@ def obter_cadastros_por_user_id(user_id):
     except Exception as e:
         logger.error(f"❌ Erro ao obter cadastros por user_id: {e}")
         return []
+
+def remover_cadastros_por_user_id(user_id):
+    """Remove todos os cadastros de um usuário pelo ID - COM SYNC"""
+    try:
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "DELETE FROM responsaveis WHERE user_id = ?",
+                (user_id,)
+            )
+            
+            removidos = cursor.rowcount
+            conn.commit()
+            
+            # 🔥 CORREÇÃO: Sincronizar após remoção
+            if removidos > 0:
+                _sincronizar_para_onedrive_critico()
+                logger.info(f"🔥 {removidos} CADASTROS REMOVIDOS E SINCRONIZADOS para usuário {user_id}")
+            
+            return removidos
+            
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        logger.error(f"❌ Erro ao remover cadastros por user_id: {e}")
+        return 0
 
 def buscar_responsaveis_por_codigo(codigo_casa):
     """Busca responsáveis pelo código da casa"""
@@ -528,115 +459,6 @@ def buscar_responsaveis_por_codigo(codigo_casa):
         logger.error(f"❌ Erro ao buscar responsáveis por código: {e}")
         return []
 
-def listar_todos_responsaveis():
-    """Retorna todos os responsáveis cadastrados"""
-    try:
-        conn = get_connection()
-        try:
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM responsaveis ORDER BY codigo_casa, nome")
-            
-            resultados = []
-            for row in cursor.fetchall():
-                resultados.append(dict(row))
-            
-            return resultados
-            
-        finally:
-            conn.close()
-            
-    except Exception as e:
-        logger.error(f"❌ Erro ao listar todos responsáveis: {e}")
-        return []
-
-def verificar_admin(user_id):
-    """Verifica se o usuário é um administrador"""
-    try:
-        conn = get_connection()
-        try:
-            cursor = conn.cursor()
-            cursor.execute("SELECT user_id FROM administradores WHERE user_id = ?", (user_id,))
-            return cursor.fetchone() is not None
-        finally:
-            conn.close()
-    except Exception as e:
-        logger.error(f"❌ Erro ao verificar administrador: {e}")
-        return False
-
-def verificar_consentimento_lgpd(user_id):
-    """Verifica se o usuário deu consentimento LGPD"""
-    try:
-        conn = get_connection()
-        try:
-            cursor = conn.cursor()
-            cursor.execute("SELECT user_id FROM consentimento_lgpd WHERE user_id = ?", (user_id,))
-            return cursor.fetchone() is not None
-        finally:
-            conn.close()
-    except Exception as e:
-        logger.error(f"❌ Erro ao verificar consentimento LGPD: {e}")
-        return False
-
-def listar_admins():
-    """Lista todos os administradores"""
-    try:
-        conn = get_connection()
-        try:
-            cursor = conn.cursor()
-            cursor.execute("SELECT user_id FROM administradores")
-            return [row['user_id'] for row in cursor.fetchall()]
-        finally:
-            conn.close()
-    except Exception as e:
-        logger.error(f"❌ Erro ao listar administradores: {e}")
-        return []
-
-def inicializar_admins_padrao(admin_ids):
-    """Inicializa administradores padrão no banco de dados"""
-    try:
-        count = 0
-        for admin_id in admin_ids:
-            sucesso, _ = adicionar_admin(admin_id)
-            if sucesso:
-                count += 1
-        
-        return count
-    except Exception as e:
-        logger.error(f"❌ Erro ao inicializar admins padrão: {e}")
-        return 0
-
-def fazer_backup_banco():
-    """Cria um backup do banco de dados"""
-    try:
-        db_path = get_db_path()
-        if not os.path.exists(db_path):
-            logger.warning(f"⚠️ Banco de dados não encontrado para backup: {db_path}")
-            return None
-            
-        fuso_horario = pytz.timezone('America/Sao_Paulo')
-        agora = datetime.now(fuso_horario)
-        timestamp = agora.strftime("%Y%m%d%H%M%S")
-        
-        RENDER_DISK_PATH = os.environ.get("RENDER_DISK_PATH", "/opt/render/project/disk")
-        DATA_DIR = os.path.join(RENDER_DISK_PATH, "shared_data")
-        backup_dir = os.path.join(DATA_DIR, "backup")
-        os.makedirs(backup_dir, exist_ok=True)
-        
-        backup_file = os.path.join(backup_dir, f"backup_{timestamp}.db")
-        
-        shutil.copy2(db_path, backup_file)
-        
-        logger.info(f"✅ Backup local criado: {backup_file}")
-        return backup_file
-        
-    except Exception as e:
-        logger.error(f"❌ Erro ao fazer backup: {e}")
-        return None
-
-# ============================================
-# FUNÇÕES DE COMPATIBILIDADE MANTIDAS
-# ============================================
-
 def buscar_responsavel_por_id(user_id):
     """Busca responsável pelo ID do Telegram"""
     try:
@@ -659,6 +481,27 @@ def buscar_responsavel_por_id(user_id):
     except Exception as e:
         logger.error(f"❌ Erro ao buscar responsável por ID: {e}")
         return None
+
+def listar_todos_responsaveis():
+    """Retorna todos os responsáveis cadastrados"""
+    try:
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM responsaveis ORDER BY codigo_casa, nome")
+            
+            resultados = []
+            for row in cursor.fetchall():
+                resultados.append(dict(row))
+            
+            return resultados
+            
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        logger.error(f"❌ Erro ao listar todos responsáveis: {e}")
+        return []
 
 def remover_responsavel(user_id):
     """Remove todos os registros de um usuário pelo ID"""
@@ -762,6 +605,98 @@ def editar_responsavel(id_registro, campos):
         logger.error(f"❌ Erro ao editar responsável: {e}")
         return False
 
+def limpar_todos_responsaveis():
+    """Remove todos os responsáveis do banco de dados - COM SYNC"""
+    try:
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+            
+            cursor.execute("SELECT COUNT(*) as total FROM responsaveis")
+            count = cursor.fetchone()['total']
+            
+            cursor.execute("DELETE FROM responsaveis")
+            conn.commit()
+            
+            logger.info(f"🔥 REMOVIDOS {count} RESPONSÁVEIS DO BANCO DE DADOS")
+            
+            # 🔥 CORREÇÃO: Sincronizar após limpeza
+            if count > 0:
+                _sincronizar_para_onedrive_critico()
+                logger.info("🔥 LIMPEZA SINCRONIZADA COM ONEDRIVE")
+            
+            return True
+            
+        finally:
+            conn.close()
+    
+    except Exception as e:
+        logger.error(f"❌ Erro ao limpar todos os responsáveis: {e}")
+        return False
+
+# ============================================
+# FUNÇÕES ADMINISTRATIVAS
+# ============================================
+
+def verificar_admin(user_id):
+    """Verifica se o usuário é um administrador"""
+    try:
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT user_id FROM administradores WHERE user_id = ?", (user_id,))
+            return cursor.fetchone() is not None
+        finally:
+            conn.close()
+    except Exception as e:
+        logger.error(f"❌ Erro ao verificar administrador: {e}")
+        return False
+
+def listar_admins():
+    """Lista todos os administradores"""
+    try:
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT user_id FROM administradores")
+            return [row['user_id'] for row in cursor.fetchall()]
+        finally:
+            conn.close()
+    except Exception as e:
+        logger.error(f"❌ Erro ao listar administradores: {e}")
+        return []
+
+def adicionar_admin(user_id, nome=None):
+    """Adiciona um novo administrador - COM SYNC"""
+    try:
+        if verificar_admin(user_id):
+            return False, "já é admin"
+        
+        fuso_horario = pytz.timezone('America/Sao_Paulo')
+        agora = datetime.now(fuso_horario).strftime("%d/%m/%Y %H:%M:%S")
+        
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO administradores (user_id, nome, data_adicao) VALUES (?, ?, ?)",
+                (user_id, nome, agora)
+            )
+            conn.commit()
+            
+            # 🔥 CORREÇÃO: Sincronizar após adicionar admin
+            _sincronizar_para_onedrive_critico()
+            logger.info(f"🔥 ADMINISTRADOR ADICIONADO E SINCRONIZADO: {user_id}")
+            
+            return True, "sucesso"
+            
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        logger.error(f"❌ Erro ao adicionar administrador: {e}")
+        return False, str(e)
+
 def remover_admin(user_id):
     """Remove um administrador"""
     try:
@@ -784,6 +719,76 @@ def remover_admin(user_id):
             
     except Exception as e:
         logger.error(f"❌ Erro ao remover administrador: {e}")
+        return False
+
+def inicializar_admins_padrao(admin_ids):
+    """Inicializa administradores padrão no banco de dados"""
+    try:
+        count = 0
+        for admin_id in admin_ids:
+            sucesso, _ = adicionar_admin(admin_id)
+            if sucesso:
+                count += 1
+        
+        return count
+    except Exception as e:
+        logger.error(f"❌ Erro ao inicializar admins padrão: {e}")
+        return 0
+
+# ============================================
+# FUNÇÕES LGPD
+# ============================================
+
+def registrar_consentimento_lgpd(user_id, ip_address=None, detalhes=None):
+    """Registra o consentimento do usuário para LGPD - COM SYNC"""
+    try:
+        fuso_horario = pytz.timezone('America/Sao_Paulo')
+        agora = datetime.now(fuso_horario).strftime("%d/%m/%Y %H:%M:%S")
+        
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+            
+            cursor.execute("SELECT user_id FROM consentimento_lgpd WHERE user_id = ?", (user_id,))
+            
+            if cursor.fetchone():
+                cursor.execute(
+                    "UPDATE consentimento_lgpd SET data_consentimento = ?, ip_address = ?, detalhes = ? WHERE user_id = ?",
+                    (agora, ip_address, detalhes, user_id)
+                )
+            else:
+                cursor.execute(
+                    "INSERT INTO consentimento_lgpd (user_id, data_consentimento, ip_address, detalhes) VALUES (?, ?, ?, ?)",
+                    (user_id, agora, ip_address, detalhes)
+                )
+                
+            conn.commit()
+            
+            # 🔥 CORREÇÃO: Sincronizar após registrar consentimento
+            _sincronizar_para_onedrive_critico()
+            logger.info(f"🔥 CONSENTIMENTO LGPD REGISTRADO E SINCRONIZADO: {user_id}")
+            
+            return True
+            
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        logger.error(f"❌ Erro ao registrar consentimento LGPD: {e}")
+        return False
+
+def verificar_consentimento_lgpd(user_id):
+    """Verifica se o usuário deu consentimento LGPD"""
+    try:
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT user_id FROM consentimento_lgpd WHERE user_id = ?", (user_id,))
+            return cursor.fetchone() is not None
+        finally:
+            conn.close()
+    except Exception as e:
+        logger.error(f"❌ Erro ao verificar consentimento LGPD: {e}")
         return False
 
 def remover_consentimento_lgpd(user_id):
@@ -809,6 +814,10 @@ def remover_consentimento_lgpd(user_id):
     except Exception as e:
         logger.error(f"❌ Erro ao remover consentimento LGPD: {e}")
         return False
+
+# ============================================
+# FUNÇÕES DE ALERTAS
+# ============================================
 
 def registrar_alerta_enviado(codigo_casa, tipo_alerta, mensagem, user_id, pdf_path=None):
     """Registra um alerta enviado"""
@@ -930,3 +939,31 @@ def obter_estatisticas_alertas():
     except Exception as e:
         logger.error(f"❌ Erro ao obter estatísticas de alertas: {e}")
         return {'total': 0, 'por_tipo': {}, 'por_periodo': {}}
+
+def fazer_backup_banco():
+    """Cria um backup do banco de dados"""
+    try:
+        db_path = get_db_path()
+        if not os.path.exists(db_path):
+            logger.warning(f"⚠️ Banco de dados não encontrado para backup: {db_path}")
+            return None
+            
+        fuso_horario = pytz.timezone('America/Sao_Paulo')
+        agora = datetime.now(fuso_horario)
+        timestamp = agora.strftime("%Y%m%d%H%M%S")
+        
+        RENDER_DISK_PATH = os.environ.get("RENDER_DISK_PATH", "/opt/render/project/disk")
+        DATA_DIR = os.path.join(RENDER_DISK_PATH, "shared_data")
+        backup_dir = os.path.join(DATA_DIR, "backup")
+        os.makedirs(backup_dir, exist_ok=True)
+        
+        backup_file = os.path.join(backup_dir, f"backup_{timestamp}.db")
+        
+        shutil.copy2(db_path, backup_file)
+        
+        logger.info(f"✅ Backup local criado: {backup_file}")
+        return backup_file
+        
+    except Exception as e:
+        logger.error(f"❌ Erro ao fazer backup: {e}")
+        return None
