@@ -5,6 +5,7 @@
 Handlers para o processo de cadastro do CCB Alerta Bot
 VERSÃO DEFINITIVA - CALLBACKS DIRETOS (SEM ConversationHandler)
 Sistema 100% funcional para produção BRK
+MELHORIAS: Texto claro + Detector de respostas não-nomes
 """
 
 import re
@@ -49,6 +50,61 @@ logger = logging.getLogger(__name__)
 ESTADO_INICIAL = "inicial"
 ESTADO_AGUARDANDO_NOME = "aguardando_nome"
 ESTADO_AGUARDANDO_FUNCAO = "aguardando_funcao"
+
+# ================================================================================================
+# DETECTOR DE RESPOSTAS NÃO-NOMES - NOVA FUNCIONALIDADE
+# ================================================================================================
+
+def validar_nome_usuario(nome: str):
+    """
+    Detecta se a resposta é um nome válido ou uma pergunta/afirmação
+    
+    Args:
+        nome (str): Texto digitado pelo usuário
+        
+    Returns:
+        tuple: (é_válido, mensagem_ou_nome_limpo)
+    """
+    nome_lower = nome.lower().strip()
+    
+    # Palavras que indicam que não é um nome
+    palavras_problema = [
+        # Perguntas
+        '?', 'qual', 'quem', 'como', 'onde', 'quando', 'por que', 'porque',
+        # Dúvidas
+        'não sei', 'nao sei', 'não estou', 'nao estou', 'não entendo', 'nao entendo',
+        'confuso', 'confusa', 'duvida', 'dúvida', 'intendendo', 'entendendte',
+        # Descrições
+        'nome do', 'nome da', 'responsável', 'responsavel', 'ancião', 'anciao',
+        'pessoa que', 'pessoa responsável', 'pessoa responsavel',
+        # Afirmações
+        'sim', 'não', 'nao', 'ok', 'certo', 'correto', 'errado',
+        'eu sou', 'meu nome', 'minha nome',
+        # Comandos
+        'cadastrar', 'ajuda', 'help', 'cancelar', 'sair'
+    ]
+    
+    # Verificar se contém palavras problemáticas
+    for palavra in palavras_problema:
+        if palavra in nome_lower:
+            return False, "Digite apenas **SEU NOME COMPLETO**.\n\nExemplo: `João da Silva` ou `Maria Santos`"
+    
+    # Verificar outros padrões problemáticos
+    if nome.startswith('/'):  # Comando Telegram
+        return False, "Digite apenas **SEU NOME COMPLETO**.\n\nExemplo: `Carlos Silva`"
+    
+    if len(nome) < 2:  # Muito curto
+        return False, "Digite apenas **SEU NOME COMPLETO**.\n\nExemplo: `Ana Costa`"
+    
+    if nome.isdigit():  # Apenas números
+        return False, "Digite apenas **SEU NOME COMPLETO**.\n\nExemplo: `Pedro Santos`"
+    
+    # Não contém letras
+    if not re.search(r'[a-zA-ZÀ-ÿ]', nome):
+        return False, "Digite um nome válido com apenas letras e espaços.\n\nExemplo: `Maria Silva`"
+    
+    # Nome válido
+    return True, nome.strip()
 
 # ================================================================================================
 # SISTEMA DE CALLBACKS DIRETOS - INÍCIO DO CADASTRO
@@ -247,26 +303,40 @@ async def selecionar_igreja(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     logger.info(f"Igreja selecionada: {igreja['codigo']} - {igreja['nome']}")
     
-    # Solicitar nome
+    # TEXTO MELHORADO - Mais claro e direto
     await query.edit_message_text(
         f"A Paz de Deus!\n\n"
-        f"✅ Casa de Oração selecionada: {igreja['codigo']} - {igreja['nome']}\n\n"
+        f"✅ Casa de Oração: {igreja['codigo']} - {igreja['nome']}\n\n"
         f"👤 Digite **SEU NOME COMPLETO**:"
     )
 
 # ================================================================================================
-# ENTRADA DE NOME (TEXTO)
+# ENTRADA DE NOME (TEXTO) - COM DETECTOR INTELIGENTE
 # ================================================================================================
 
 async def receber_nome(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Recebe nome digitado pelo usuário"""
+    """Recebe nome digitado pelo usuário - COM VALIDAÇÃO INTELIGENTE"""
     # Verificar se está no estado correto
     if ('cadastro' not in context.user_data or 
         context.user_data['cadastro'].get('estado') != ESTADO_AGUARDANDO_NOME):
         return  # Ignora se não está no fluxo de cadastro
     
-    nome = update.message.text.strip()
+    nome_digitado = update.message.text.strip()
     
+    # NOVA VALIDAÇÃO - Detector de respostas não-nomes
+    eh_nome_valido, mensagem = validar_nome_usuario(nome_digitado)
+    
+    if not eh_nome_valido:
+        await update.message.reply_text(
+            f"A Paz de Deus!\n\n"
+            f"{mensagem}\n\n"
+            f"📝 **Digite novamente:**"
+        )
+        return
+    
+    nome = mensagem  # É o nome limpo quando válido
+    
+    # Validação de comprimento (mantida do original)
     if len(nome) < 3:
         await update.message.reply_text("❌ Nome deve ter pelo menos 3 caracteres.")
         return
@@ -275,7 +345,7 @@ async def receber_nome(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['cadastro']['nome'] = nome
     context.user_data['cadastro']['pagina_funcao'] = 0
     
-    logger.info(f"✅ Nome recebido: {nome}")
+    logger.info(f"✅ Nome válido recebido: {nome}")
     
     # Mostrar menu de funções
     await mostrar_menu_funcoes(update, context)
