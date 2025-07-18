@@ -11,6 +11,8 @@ import re
 
 # Lista de igrejas com códigos (mantida igual)
 IGREJAS = [
+    {"codigo": "ADM-MAUÁ", "nome": "PRÉDIO ADMINISTRAÇÃO"},
+    {"codigo": "PIA", "nome": "PRÉDIO DA PIEDADE"},
     {"codigo": "BR21-0270", "nome": "CENTRO"},
     {"codigo": "BR21-0271", "nome": "JARDIM PRIMAVERA"},
     {"codigo": "BR21-0272", "nome": "JARDIM MIRANDA D'AVIZ"},
