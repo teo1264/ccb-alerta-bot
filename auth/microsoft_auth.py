@@ -251,12 +251,17 @@ class MicrosoftAuthUnified:
         self.logger.info(f"🔄 Renovando token CCB: {self.mask_token(self._tokens['refresh_token'])}")
         
         try:
+            # CORREÇÃO: Usar mesmo padrão do hotmail_refresh.py que funciona
             data = {
                 'client_id': self.client_id,
-                'client_secret': self.client_secret,
                 'grant_type': 'refresh_token',
-                'refresh_token': self._tokens["refresh_token"]
+                'refresh_token': self._tokens["refresh_token"],
+                'scope': 'https://graph.microsoft.com/.default offline_access'
             }
+            
+            # Se client_secret existir, adicionar (para apps confidenciais)
+            if self.client_secret:
+                data['client_secret'] = self.client_secret
             
             response = requests.post(
                 f'https://login.microsoftonline.com/{self.tenant_id}/oauth2/v2.0/token',
@@ -277,6 +282,7 @@ class MicrosoftAuthUnified:
                 return True
             else:
                 self.logger.error(f"❌ Erro renovação CCB: {response.status_code}")
+                self.logger.error(f"❌ Resposta completa: {response.text}")
                 return False
                 
         except Exception as e:
@@ -357,4 +363,4 @@ class MicrosoftAuthUnified:
 
 # Compatibilidade
 class MicrosoftAuth(MicrosoftAuthUnified):
-    pass
+    passvv
