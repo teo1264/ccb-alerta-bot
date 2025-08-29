@@ -1,5 +1,5 @@
 """
-Microsoft Authentication Manager - CCB ESPEC�FICO  
+Microsoft Authentication Manager - CCB ESPECÍFICO  
 Token exclusivo: /Alerta/token_ccb.json
 """
 
@@ -19,28 +19,28 @@ class MicrosoftAuthUnified:
         self.encryption_key = os.getenv("ENCRYPTION_KEY")
         self.alerta_folder_id = os.getenv("ONEDRIVE_ALERTA_ID")
         
-        # TOKEN ESPEC�FICO CCB
+        # TOKEN ESPECÍFICO CCB
         self.shared_token_filename = "token_ccb.json"
         self.local_fallback_path = "token_backup_ccb.json"
         
         if not self.client_id:
-            raise ValueError("L MICROSOFT_CLIENT_ID n�o encontrado")
+            raise ValueError("❌ MICROSOFT_CLIENT_ID não encontrado")
         if not self.encryption_key:
-            raise ValueError("L ENCRYPTION_KEY n�o encontrada") 
+            raise ValueError("❌ ENCRYPTION_KEY não encontrada") 
         if not self.alerta_folder_id:
-            raise ValueError("L ONEDRIVE_ALERTA_ID n�o encontrado")
+            raise ValueError("❌ ONEDRIVE_ALERTA_ID não encontrado")
             
         try:
             self.fernet = Fernet(self.encryption_key.encode())
         except Exception as e:
-            raise ValueError(f"L ENCRYPTION_KEY inv�lida: {e}")
+            raise ValueError(f"❌ ENCRYPTION_KEY inválida: {e}")
             
         self._tokens = None
         self._token_expiry = None
         
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
-        self.logger.info("= Microsoft Auth CCB iniciado")
+        self.logger.info("🔐 Microsoft Auth CCB iniciado")
     
     def mask_token(self, token: str) -> str:
         if not token or len(token) < 10:
@@ -52,7 +52,7 @@ class MicrosoftAuthUnified:
             encrypted = self.fernet.encrypt(data.encode()).decode()
             return encrypted
         except Exception as e:
-            self.logger.error(f"L Erro na criptografia: {e}")
+            self.logger.error(f"❌ Erro na criptografia: {e}")
             raise
     
     def _decrypt_data(self, encrypted_data: str) -> str:
@@ -60,7 +60,7 @@ class MicrosoftAuthUnified:
             decrypted = self.fernet.decrypt(encrypted_data.encode()).decode()
             return decrypted
         except Exception as e:
-            self.logger.error(f"L Erro na descriptografia: {e}")
+            self.logger.error(f"❌ Erro na descriptografia: {e}")
             raise
     
     def _get_shared_token_url(self) -> str:
@@ -71,7 +71,7 @@ class MicrosoftAuthUnified:
             access_token = os.getenv("MICROSOFT_ACCESS_TOKEN") or (self._tokens and self._tokens.get("access_token"))
             
             if not access_token:
-                self.logger.warning("�  Sem access_token para acessar OneDrive")
+                self.logger.warning("⚠️  Sem access_token para acessar OneDrive")
                 return None
                 
             headers = {
@@ -80,23 +80,23 @@ class MicrosoftAuthUnified:
             }
             
             url = self._get_shared_token_url()
-            self.logger.info(f"=� Carregando token CCB da pasta Alerta...")
+            self.logger.info(f"📥 Carregando token CCB da pasta Alerta...")
             
             response = requests.get(url, headers=headers, timeout=30)
             
             if response.status_code == 200:
                 token_data = response.json()
-                self.logger.info(f" Token CCB carregado: {self.mask_token(token_data.get('refresh_token', ''))}")
+                self.logger.info(f"✅ Token CCB carregado: {self.mask_token(token_data.get('refresh_token', ''))}")
                 return token_data
             elif response.status_code == 404:
-                self.logger.info("=� Arquivo token_ccb.json n�o existe ainda")
+                self.logger.info("📄 Arquivo token_ccb.json não existe ainda")
                 return None
             else:
-                self.logger.warning(f"�  Erro carregar token CCB: {response.status_code}")
+                self.logger.warning(f"⚠️  Erro carregar token CCB: {response.status_code}")
                 return None
                 
         except Exception as e:
-            self.logger.error(f"L Erro acessar OneDrive Alerta: {e}")
+            self.logger.error(f"❌ Erro acessar OneDrive Alerta: {e}")
             return None
     
     def _save_to_onedrive_shared(self, token_data: Dict[str, Any]) -> bool:
@@ -104,7 +104,7 @@ class MicrosoftAuthUnified:
             access_token = os.getenv("MICROSOFT_ACCESS_TOKEN") or (self._tokens and self._tokens.get("access_token"))
             
             if not access_token:
-                self.logger.error("L Sem access_token para salvar")
+                self.logger.error("❌ Sem access_token para salvar")
                 return False
                 
             headers = {
@@ -122,7 +122,7 @@ class MicrosoftAuthUnified:
             }
             
             url = self._get_shared_token_url()
-            self.logger.info(f"=� Salvando token CCB na pasta Alerta...")
+            self.logger.info(f"💾 Salvando token CCB na pasta Alerta...")
             
             response = requests.put(
                 url, 
@@ -132,19 +132,18 @@ class MicrosoftAuthUnified:
             )
             
             if response.status_code in [200, 201]:
-                self.logger.info(f" Token CCB salvo: {self.mask_token(token_data['refresh_token'])}")
+                self.logger.info(f"✅ Token CCB salvo: {self.mask_token(token_data['refresh_token'])}")
                 return True
             else:
-                self.logger.error(f"L Erro salvar token CCB: {response.status_code}")
+                self.logger.error(f"❌ Erro salvar token CCB: {response.status_code}")
                 return False
                 
         except Exception as e:
-            self.logger.error(f"L Erro salvar token CCB: {e}")
+            self.logger.error(f"❌ Erro salvar token CCB: {e}")
             return False
     
     def load_tokens(self) -> bool:
-        self.logger.info("=
- Iniciando carregamento tokens CCB...")
+        self.logger.info("🔍 Iniciando carregamento tokens CCB...")
         
         # 1. Environment variables criptografadas
         access_token_env = os.getenv("MICROSOFT_ACCESS_TOKEN_SECURE")
@@ -157,10 +156,10 @@ class MicrosoftAuthUnified:
                     "refresh_token": self._decrypt_data(refresh_token_env),
                     "expires_on": int(os.getenv("MICROSOFT_TOKEN_EXPIRES", "0"))
                 }
-                self.logger.info(f" Tokens CCB das ENV criptografadas: {self.mask_token(self._tokens['access_token'])}")
+                self.logger.info(f"✅ Tokens CCB das ENV criptografadas: {self.mask_token(self._tokens['access_token'])}")
                 return True
             except Exception as e:
-                self.logger.error(f"L Erro descriptografar ENV: {e}")
+                self.logger.error(f"❌ Erro descriptografar ENV: {e}")
         
         # 2. Environment variables texto plano (bootstrap)
         access_token_plain = os.getenv("MICROSOFT_ACCESS_TOKEN")
@@ -172,7 +171,7 @@ class MicrosoftAuthUnified:
                 "refresh_token": refresh_token_plain,
                 "expires_on": int(os.getenv("MICROSOFT_TOKEN_EXPIRES", str(int(datetime.now().timestamp()) + 3600)))
             }
-            self.logger.info(" Tokens CCB bootstrap das ENV texto plano")
+            self.logger.info("✅ Tokens CCB bootstrap das ENV texto plano")
             
             # Carregar/migrar do OneDrive
             onedrive_tokens = self._load_from_onedrive_shared()
@@ -182,12 +181,12 @@ class MicrosoftAuthUnified:
                         onedrive_tokens["access_token"] = self._decrypt_data(onedrive_tokens["access_token"])
                         onedrive_tokens["refresh_token"] = self._decrypt_data(onedrive_tokens["refresh_token"])
                         self._tokens = onedrive_tokens
-                        self.logger.info(" Migrado para token CCB OneDrive criptografado")
+                        self.logger.info("✅ Migrado para token CCB OneDrive criptografado")
                     except Exception as e:
-                        self.logger.error(f"L Erro descriptografar OneDrive: {e}")
+                        self.logger.error(f"❌ Erro descriptografar OneDrive: {e}")
                 else:
                     self._tokens = onedrive_tokens
-                    self.logger.warning("�  Token CCB OneDrive texto puro - migrando...")
+                    self.logger.warning("⚠️  Token CCB OneDrive texto puro - migrando...")
                     self.save_tokens(onedrive_tokens["access_token"], onedrive_tokens["refresh_token"])
             
             return True
@@ -200,14 +199,14 @@ class MicrosoftAuthUnified:
                     onedrive_tokens["access_token"] = self._decrypt_data(onedrive_tokens["access_token"])
                     onedrive_tokens["refresh_token"] = self._decrypt_data(onedrive_tokens["refresh_token"])
                 except Exception as e:
-                    self.logger.error(f"L Erro descriptografar OneDrive: {e}")
+                    self.logger.error(f"❌ Erro descriptografar OneDrive: {e}")
                     onedrive_tokens = None
                     
             if onedrive_tokens:
                 self._tokens = onedrive_tokens
                 return True
         
-        self.logger.warning("�  Nenhum token CCB encontrado")
+        self.logger.warning("⚠️  Nenhum token CCB encontrado")
         return False
     
     def save_tokens(self, access_token: str, refresh_token: str, expires_in: int = 3600):
@@ -222,14 +221,14 @@ class MicrosoftAuthUnified:
         self._tokens = token_data.copy()
         self._token_expiry = datetime.fromtimestamp(expires_on)
         
-        self.logger.info(f"=� Salvando tokens CCB: {self.mask_token(refresh_token)}")
+        self.logger.info(f"💾 Salvando tokens CCB: {self.mask_token(refresh_token)}")
         
         onedrive_saved = self._save_to_onedrive_shared(token_data)
         
         if onedrive_saved:
-            self.logger.info(" Tokens CCB salvos com sucesso")
+            self.logger.info("✅ Tokens CCB salvos com sucesso")
         else:
-            self.logger.warning("�  OneDrive CCB falhou")
+            self.logger.warning("⚠️  OneDrive CCB falhou")
     
     def is_token_valid(self) -> bool:
         if not self._tokens:
@@ -246,10 +245,10 @@ class MicrosoftAuthUnified:
     
     def refresh_access_token(self) -> bool:
         if not self._tokens or not self._tokens.get("refresh_token"):
-            self.logger.error("L Refresh token CCB n�o dispon�vel")
+            self.logger.error("❌ Refresh token CCB não disponível")
             return False
         
-        self.logger.info(f"= Renovando token CCB: {self.mask_token(self._tokens['refresh_token'])}")
+        self.logger.info(f"🔄 Renovando token CCB: {self.mask_token(self._tokens['refresh_token'])}")
         
         try:
             data = {
@@ -274,14 +273,14 @@ class MicrosoftAuthUnified:
                     token_response.get('expires_in', 3600)
                 )
                 
-                self.logger.info(f" Token CCB renovado: {self.mask_token(token_response['access_token'])}")
+                self.logger.info(f"✅ Token CCB renovado: {self.mask_token(token_response['access_token'])}")
                 return True
             else:
-                self.logger.error(f"L Erro renova��o CCB: {response.status_code}")
+                self.logger.error(f"❌ Erro renovação CCB: {response.status_code}")
                 return False
                 
         except Exception as e:
-            self.logger.error(f"L Erro renova��o CCB: {e}")
+            self.logger.error(f"❌ Erro renovação CCB: {e}")
             return False
     
     @property
@@ -303,18 +302,18 @@ class MicrosoftAuthUnified:
                 return None
         return self._tokens.get("refresh_token")
     
-    # M�todos de compatibilidade CCB
+    # Métodos de compatibilidade CCB
     def carregar_token(self) -> bool:
         return self.load_tokens()
     
     def salvar_token_persistent(self, access_token: str, refresh_token: str, expires_in: int = 3600):
         self.save_tokens(access_token, refresh_token, expires_in)
-        self.logger.info(" Token CCB salvo com persist�ncia")
+        self.logger.info("✅ Token CCB salvo com persistência")
     
     def atualizar_token(self) -> bool:
         success = self.refresh_access_token()
         if success:
-            self.logger.info(" Token CCB atualizado com sucesso")
+            self.logger.info("✅ Token CCB atualizado com sucesso")
         return success
     
     def validar_token(self) -> bool:
@@ -323,7 +322,7 @@ class MicrosoftAuthUnified:
     def obter_headers_autenticados(self) -> dict:
         token = self.access_token
         if not token:
-            raise Exception("Token de acesso n�o dispon�vel")
+            raise Exception("Token de acesso não disponível")
         return {
             'Authorization': f'Bearer {token}',
             'Content-Type': 'application/json'
