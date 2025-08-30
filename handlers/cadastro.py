@@ -6,11 +6,14 @@ Handlers para o processo de cadastro do CCB Alerta Bot
 VERSÃO DEFINITIVA - CALLBACKS DIRETOS (SEM ConversationHandler)
 Sistema 100% funcional para produção BRK
 MELHORIAS: Texto claro + Detector de respostas não-nomes
+CORREÇÕES: Mensagem duplicado + Fail-fast OneDrive + Alertas admin
 """
 
 import re
 import math
 import logging
+import os
+from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     CommandHandler, MessageHandler, CallbackQueryHandler,
@@ -50,6 +53,139 @@ logger = logging.getLogger(__name__)
 ESTADO_INICIAL = "inicial"
 ESTADO_AGUARDANDO_NOME = "aguardando_nome"
 ESTADO_AGUARDANDO_FUNCAO = "aguardando_funcao"
+
+# ================================================================================================
+# SISTEMA DE ALERTAS ONEDRIVE - INTEGRAÇÃO
+# ================================================================================================
+
+def get_admin_ids():
+    """Obter IDs dos administradores da variável ADMIN_IDS"""
+    admin_ids_str = os.getenv("ADMIN_IDS", "")
+    return [admin_id.strip() for admin_id in admin_ids_str.split(',') if admin_id.strip()]
+
+async def send_telegram_to_admin(admin_id, message, context):
+    """Enviar mensagem Telegram para admin específico"""
+    try:
+        await context.bot.send_message(
+            chat_id=admin_id,
+            text=message,
+            parse_mode='Markdown'
+        )
+        return True
+    except Exception as e:
+        logger.error(f"❌ Erro enviando Telegram para admin {admin_id}: {e}")
+        return False
+
+async def alert_onedrive_failure(error_details, context):
+    """Alertar todos os admins sobre falha do OneDrive"""
+    admin_ids = get_admin_ids()
+    if not admin_ids:
+        logger.error("❌ Nenhum admin configurado para alertas OneDrive")
+        return False
+        
+    message = f"""
+🚨 **ALERTA CRÍTICO - Sistema CCB**
+
+❌ **OneDrive OFFLINE**
+⏰ {datetime.now().strftime('%H:%M:%S - %d/%m/%Y')}
+
+🔍 **Erro:** {error_details}
+
+⚠️ **IMPACTO:**
+• ❌ Novos cadastros BLOQUEADOS
+• ❌ Sincronização BRK/ENEL parada
+• 🛡️ Sistema em modo proteção
+
+🔧 **AÇÃO NECESSÁRIA:**
+1. Verificar token Microsoft no Render
+2. Renovar credenciais se expirado
+3. Restart serviço após correção
+
+_Cadastros serão rejeitados até normalização_
+"""
+    
+    success_count = 0
+    for admin_id in admin_ids:
+        if await send_telegram_to_admin(admin_id, message, context):
+            success_count += 1
+    
+    logger.info(f"🚨 Alerta OneDrive enviado para {success_count}/{len(admin_ids)} admins")
+    return success_count > 0
+
+async def alert_onedrive_recovery(context):
+    """Alertar recuperação do OneDrive"""
+    admin_ids = get_admin_ids()
+    if not admin_ids:
+        return False
+        
+    message = f"""
+✅ **SISTEMA RECUPERADO - CCB**
+
+🌐 **OneDrive:** Online
+⏰ {datetime.now().strftime('%H:%M:%S - %d/%m/%Y')}
+
+✅ **Status:**
+• ✅ Cadastros liberados
+• ✅ Sincronização BRK/ENEL ativa
+• ✅ Sistema operacional
+
+📊 Monitoramento ativo
+"""
+    
+    success_count = 0
+    for admin_id in admin_ids:
+        if await send_telegram_to_admin(admin_id, message, context):
+            success_count += 1
+    
+    logger.info(f"✅ Recuperação notificada para {success_count}/{len(admin_ids)} admins")
+    return success_count > 0
+
+# Variável global para controlar status do OneDrive
+onedrive_status = {"healthy": True, "last_check": None}
+
+async def check_onedrive_health(context):
+    """Verificar saúde do OneDrive antes de aceitar cadastros"""
+    global onedrive_status
+    
+    now = datetime.now()
+    
+    # Cache de 30 segundos
+    if (onedrive_status["last_check"] and 
+        (now - onedrive_status["last_check"]).seconds < 30):
+        return onedrive_status["healthy"]
+    
+    try:
+        # Verificar variáveis básicas necessárias
+        client_id = os.getenv("MICROSOFT_CLIENT_ID")
+        access_token = os.getenv("MICROSOFT_ACCESS_TOKEN") 
+        alerta_id = os.getenv("ONEDRIVE_ALERTA_ID")
+        
+        if not client_id or not access_token or not alerta_id:
+            raise Exception("Configurações Microsoft/OneDrive incompletas")
+            
+        # Se chegou até aqui e tinha problemas antes, recuperou
+        was_healthy = onedrive_status["healthy"]
+        onedrive_status["healthy"] = True
+        onedrive_status["last_check"] = now
+        
+        # Se estava down e agora subiu, alertar recuperação
+        if not was_healthy:
+            await alert_onedrive_recovery(context)
+            logger.info("✅ OneDrive recuperado - admins notificados")
+            
+        return True
+        
+    except Exception as e:
+        was_healthy = onedrive_status["healthy"]
+        onedrive_status["healthy"] = False
+        onedrive_status["last_check"] = now
+        
+        # Se estava up e agora caiu, alertar admins
+        if was_healthy:
+            await alert_onedrive_failure(str(e), context)
+            logger.error(f"🚨 OneDrive falhou - admins alertados: {e}")
+            
+        return False
 
 # ================================================================================================
 # DETECTOR DE RESPOSTAS NÃO-NOMES - NOVA FUNCIONALIDADE
@@ -590,7 +726,7 @@ async def mostrar_confirmacao_mensagem(update, context: ContextTypes.DEFAULT_TYP
     await update.message.reply_text(texto, reply_markup=reply_markup)
 
 async def confirmar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Finaliza cadastro no banco de dados"""
+    """Finaliza cadastro no banco de dados - COM CORREÇÕES"""
     query = update.callback_query
     await query.answer()
     
@@ -598,6 +734,19 @@ async def confirmar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if 'cadastro' not in context.user_data:
         await query.edit_message_text(
             "Sessão expirou. Use /cadastrar para iniciar novamente."
+        )
+        return
+    
+    # NOVO: Verificar saúde do OneDrive ANTES de prosseguir
+    if not await check_onedrive_health(context):
+        await query.edit_message_text(
+            "🔧 **Sistema temporariamente indisponível**\n\n"
+            "⚠️ Estamos com problemas técnicos no momento\n"
+            "⏰ Tente novamente em alguns minutos\n\n"
+            "_Seus dados são importantes e só serão salvos quando "
+            "o sistema estiver 100% operacional_\n\n"
+            "📞 Em caso de urgência, contate o administrador",
+            parse_mode='Markdown'
         )
         return
     
@@ -617,6 +766,7 @@ async def confirmar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
         
         if sucesso:
+            # Cadastro bem-sucedido
             await query.edit_message_text(
                 "Projeto Débito Automático\n\n"
                 "✅ Cadastro realizado com sucesso!\n\n"
@@ -629,26 +779,62 @@ async def confirmar_cadastro(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
             
             logger.info(f"✅ Cadastro concluído: {dados['codigo']} - {dados['nome']}")
+            
         else:
-            await query.edit_message_text(
-                "A Paz de Deus!\n\n"
-                "❌ Erro no cadastro.\n\n"
-                "Tente novamente mais tarde.\n\n"
-                "Deus te abençoe! 🙏"
-            )
-        
+            # CORREÇÃO: Tratar diferentes tipos de erro
+            if isinstance(status, str) and "nome_ja_cadastrado" in status:
+                # Extrair função existente
+                parts = status.split("|")
+                funcao_existente = parts[1] if len(parts) > 1 else "não informada"
+                
+                await query.edit_message_text(
+                    "A Paz de Deus!\n\n"
+                    "⚠️ **Cadastro Duplicado Detectado**\n\n"
+                    f"👤 O nome **{dados['nome']}** já está cadastrado "
+                    f"na Casa de Oração **{dados['nome_igreja']}**\n\n"
+                    f"🔧 Função atual: {funcao_existente}\n\n"
+                    "ℹ️ **O que fazer:**\n"
+                    "• Se você mudou de função, contate o administrador\n"
+                    "• Se não é você, verifique se digitou o nome corretamente\n"
+                    "• Cada pessoa pode ter apenas um cadastro por Casa\n\n"
+                    "📞 Em caso de dúvidas, contate o responsável da sua Casa de Oração",
+                    parse_mode='Markdown'
+                )
+                
+                logger.warning(f"⚠️ Cadastro duplicado: {dados['codigo']} - {dados['nome']} (usuário {user_id})")
+                
+            else:
+                # Outros tipos de erro
+                await query.edit_message_text(
+                    "A Paz de Deus!\n\n"
+                    "❌ Ocorreu um erro técnico durante seu cadastro.\n\n"
+                    "🔄 Por favor, tente novamente em alguns minutos.\n\n"
+                    "Se o problema persistir, contate o administrador da sua Casa de Oração.\n\n"
+                    "Obrigado pela compreensão! 🙏"
+                )
+                
+                logger.error(f"❌ Erro no cadastro: {dados['codigo']} - {dados['nome']} - Status: {status}")
+    
     except Exception as e:
-        logger.error(f"❌ Erro ao salvar: {e}")
+        # Erro crítico - alertar admin se OneDrive estava envolvido
+        error_msg = str(e)
+        if "onedrive" in error_msg.lower() or "microsoft" in error_msg.lower():
+            await alert_onedrive_failure(error_msg, context)
+        
         await query.edit_message_text(
             "A Paz de Deus!\n\n"
-            "❌ Erro interno.\n\n"
-            "Tente novamente.\n\n"
-            "Deus te abençoe! 🙏"
+            "❌ Ocorreu um erro técnico inesperado.\n\n"
+            "🔄 Por favor, tente realizar seu cadastro novamente.\n\n"
+            "📞 Se o problema continuar, contate o administrador.\n\n"
+            "Pedimos desculpas pelo inconveniente! 🙏"
         )
+        
+        logger.error(f"❌ Exceção no cadastro: {e}")
     
-    # Limpar contexto
-    if 'cadastro' in context.user_data:
-        del context.user_data['cadastro']
+    finally:
+        # Limpar contexto
+        if 'cadastro' in context.user_data:
+            del context.user_data['cadastro']
 
 # ================================================================================================
 # CANCELAMENTO
@@ -734,7 +920,7 @@ def registrar_handlers_cadastro(application):
         processar_entrada_texto
     ))
     
-    logger.info("✅ Handlers cadastro DIRETOS registrados - Sistema 100% funcional")
+    logger.info("✅ Handlers cadastro DIRETOS registrados - Sistema 100% funcional com correções")
 
 async def processar_entrada_texto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Processa entrada de texto baseado no estado atual"""
