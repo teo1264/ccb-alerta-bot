@@ -363,4 +363,4 @@ class MicrosoftAuthUnified:
 
 # Compatibilidade
 class MicrosoftAuth(MicrosoftAuthUnified):
-    passvv
+    pass
