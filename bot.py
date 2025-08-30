@@ -2,11 +2,12 @@
 # -*- coding: utf-8 -*-
 
 """
-CCB Alerta Bot - VERSÃO CORRIGIDA COM MELHORIAS
+CCB Alerta Bot - VERSÃO CORRIGIDA COM MELHORIAS + COMANDOS GLOBAIS
 ✅ Sistema de alertas OneDrive para admins
 ✅ Comando /health para diagnóstico
 ✅ Fail-fast integrado nos cadastros
 ✅ Monitoramento proativo do sistema
+🌐 NOVO: Comandos /add_global e /list_global para admins
 """
 
 import logging
@@ -172,7 +173,9 @@ async def health_command(update, context):
 🔧 **Comandos Disponíveis:**
 /restart - Reiniciar sistema (placeholder)
 /sync - Forçar sincronização (placeholder)
-/test - Testar componentes (placeholder)
+/test - Testar componentes
+/add_global - Adicionar usuário em todas igrejas
+/list_global - Listar usuários globais
 
 📋 **Detalhes Técnicos:**
 ```
@@ -191,6 +194,66 @@ Telegram: {telegram_health["details"]}
     
     # Log do comando
     logger.info(f"📊 Comando /health executado por admin {user_id} - Status: {overall_status}")
+
+async def admin_help_command(update, context):
+    """Comando /admin_help - Lista todos os comandos administrativos"""
+    user_id = str(update.effective_user.id)
+    admin_ids = get_admin_ids()
+    
+    # Verificar se é admin
+    if user_id not in admin_ids:
+        await update.message.reply_text("❌ Comando disponível apenas para administradores.")
+        return
+    
+    help_msg = f"""
+🔧 **COMANDOS ADMINISTRATIVOS - CCB**
+
+📊 **DIAGNÓSTICO:**
+/health - Diagnóstico completo do sistema
+/test - Teste rápido de componentes básicos
+
+🌐 **CADASTRO GLOBAL:**
+/add_global <user_id> - Adicionar usuário em todas as igrejas
+/list_global - Listar usuários com múltiplos cadastros
+
+🔄 **SISTEMA:**
+/restart - Reiniciar componentes (placeholder)
+/sync - Forçar sincronização OneDrive (placeholder)
+
+📋 **INFORMAÇÕES:**
+/admin_help - Esta lista de comandos
+
+---
+
+🌐 **EXEMPLO DE USO - Cadastro Global:**
+
+**Situação:** Usuário precisa receber alertas de todas as igrejas
+
+**Passo 1:** Usuário se cadastra em pelo menos 1 igreja
+**Passo 2:** Admin identifica o user_id do usuário
+**Passo 3:** Admin executa: `/add_global 5876346562`
+**Resultado:** Usuário passa a receber alertas de todas as {self._get_total_igrejas()} igrejas
+
+---
+
+⚠️ **IMPORTANTE:**
+• Só admins podem usar estes comandos
+• Cadastro global replica dados do cadastro existente
+• Use /list_global para ver quem já está global
+
+👥 **Admin atual:** {update.effective_user.first_name} (ID: {user_id})
+⏰ **Gerado:** {datetime.now().strftime('%H:%M:%S')}
+"""
+    
+    await update.message.reply_text(help_msg, parse_mode='Markdown')
+
+def _get_total_igrejas():
+    """Helper para obter total de igrejas"""
+    try:
+        from handlers.data import IGREJAS
+        return len(IGREJAS)
+    except:
+        return "N/A"
 
 async def restart_command(update, context):
     """Comando /restart - Placeholder para reiniciar componentes"""
@@ -267,6 +330,22 @@ async def test_command(update, context):
     
     await update.message.reply_text(result_msg, parse_mode='Markdown')
 
+# ================================================================================================
+# COMANDOS DE CADASTRO GLOBAL - IMPORTAÇÃO
+# ================================================================================================
+
+# Importar funções do módulo de cadastro global
+import sys
+import os
+sys.path.insert(0, os.path.dirname(__file__))
+
+try:
+    from admin_global_command import get_global_admin_handlers
+    GLOBAL_COMMANDS_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"⚠️ Comandos globais não disponíveis: {e}")
+    GLOBAL_COMMANDS_AVAILABLE = False
+
 def configurar_logs():
     """Configura pasta e arquivos de log"""
     if not os.path.exists("logs"):
@@ -280,7 +359,7 @@ def configurar_logs():
     logger.info("Sistema de logs configurado")
 
 def main():
-    """Função principal - VERSÃO CORRIGIDA COM MELHORIAS"""
+    """Função principal - VERSÃO CORRIGIDA COM COMANDOS GLOBAIS"""
     logger.info("=" * 50)
     logger.info("Inicializando o CCB Alerta Bot...")
     logger.info("=" * 50)
@@ -317,12 +396,21 @@ def main():
         registrar_error_handler(application)
         logger.info("6️⃣ Error handler registrado")
         
-        # NOVO: Registrar comandos de admin para diagnóstico
+        # Comandos de diagnóstico básicos
         application.add_handler(CommandHandler("health", health_command))
         application.add_handler(CommandHandler("restart", restart_command))
         application.add_handler(CommandHandler("sync", sync_command))
         application.add_handler(CommandHandler("test", test_command))
+        application.add_handler(CommandHandler("admin_help", admin_help_command))
         logger.info("7️⃣ Comandos admin diagnóstico registrados")
+        
+        # NOVO: Comandos de cadastro global
+        if GLOBAL_COMMANDS_AVAILABLE:
+            for handler in get_global_admin_handlers():
+                application.add_handler(handler)
+            logger.info("8️⃣ Comandos cadastro global registrados (/add_global, /list_global)")
+        else:
+            logger.warning("⚠️ Comandos de cadastro global não disponíveis")
         
         # Log das configurações importantes
         admin_ids = get_admin_ids()
@@ -335,6 +423,15 @@ def main():
         # Verificar OneDrive rapidamente
         onedrive_health = check_onedrive_health()
         logger.info(f"🌐 Status OneDrive: {onedrive_health['status']} {onedrive_health['message']}")
+        
+        # Log dos comandos globais
+        if GLOBAL_COMMANDS_AVAILABLE:
+            try:
+                from handlers.data import IGREJAS
+                total_igrejas = len(IGREJAS)
+                logger.info(f"🌐 Cadastro global disponível para {total_igrejas} igrejas")
+            except:
+                logger.info("🌐 Cadastro global disponível")
         
         # Modo produção: WEBHOOK ou POLLING
         if WEBHOOK_CONFIG['usar_webhook']:
